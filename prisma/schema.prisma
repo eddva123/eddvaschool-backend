@@ -1,0 +1,583 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// Enums
+// ==========================================
+
+enum Role {
+  SUPER_ADMIN
+  INSTITUTE_ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum InstituteStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ==========================================
+// Core: Institute & Users
+// ==========================================
+
+model Institute {
+  id             String          @id @default(uuid())
+  name           String
+  principalName  String?
+  registrationNo String?
+  email          String          @unique
+  phone          String?
+  address        String?
+  plotNo         String?
+  streetName     String?
+  landMark       String?
+  city           String?
+  district       String?
+  state          String?
+  pinCode        String?
+  logo           String?
+  tenantDomain   String?         @unique
+  status         InstituteStatus @default(PENDING)
+
+  users        User[]
+  complaints   Complaint[]
+  activityLogs ActivityLog[]
+  classes      Class[]
+  subjects     Subject[]
+  teachers     Teacher[]
+  students     Student[]
+  notices      Notice[]
+  attendances  Attendance[]
+  timetables   Timetable[]
+  messages     Message[]
+  events       Event[]
+  fees         Fee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id          String  @id @default(uuid())
+  instituteId String?
+  institute   Institute? @relation(fields: [instituteId], references: [id])
+
+  name     String
+  email    String  @unique
+  password String
+  role     Role
+  photo    String?
+  phone    String?
+  isActive Boolean @default(true)
+
+  teacherProfile Teacher?
+  studentProfile Student?
+  attendances    Attendance[]
+
+  sentMessages     Message[] @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageReceiver")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Complaint {
+  id          String          @id @default(uuid())
+  instituteId String
+  institute   Institute       @relation(fields: [instituteId], references: [id])
+  title       String
+  description String
+  status      ComplaintStatus @default(OPEN)
+  createdAt   DateTime        @default(now())
+}
+
+model ActivityLog {
+  id          String     @id @default(uuid())
+  instituteId String?
+  institute   Institute? @relation(fields: [instituteId], references: [id])
+  action      String
+  userId      String?
+  createdAt   DateTime   @default(now())
+}
+
+// ==========================================
+// Phase 1: Core Academic Models
+// ==========================================
+
+model Class {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  name        String
+  level       Int?
+
+  sections Section[]
+  subjects Subject[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instituteId, name])
+}
+
+model Section {
+  id             String   @id @default(uuid())
+  classId        String
+  class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name           String
+  classTeacherId String?
+  classTeacher   Teacher? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+
+  students   Student[]
+  timetables Timetable[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, name])
+}
+
+model Subject {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  name        String
+  code        String?
+
+  classes    Class[]
+  teachers   Teacher[]
+  timetables Timetable[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instituteId, name])
+}
+
+model Teacher {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+
+  employeeId     String?
+  department     String?
+  joiningDate    DateTime?
+  qualifications String?
+
+  subjects      Subject[]
+  classSections Section[] @relation("ClassTeacher")
+  timetables    Timetable[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+
+  enrollmentNo     String?
+  rollNo           String?
+  dob              DateTime?
+  gender           String?
+  bloodGroup       String?
+  nationalId       String?
+  fatherName       String?
+  motherName       String?
+  parentPhone      String?
+  parentEmail      String?
+  parentOccupation String?
+  address          String?
+  city             String?
+  state            String?
+  pinCode          String?
+  medicalConditions String?
+  allergies        String?
+  sectionId        String?
+  section          Section?  @relation(fields: [sectionId], references: [id])
+  admissionDate    DateTime?
+  documents        Json?
+
+  fees Fee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// Phase 2: Operations Models
+// ==========================================
+
+model Notice {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+
+  title       String
+  content     String
+  targetRoles Role[]
+  category    String   @default("GENERAL")
+  priority    String   @default("NORMAL")
+  postedDate  DateTime?
+  expiryDate  DateTime?
+  attachments Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attendance {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  date        DateTime  @db.Date
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  status      String
+  remarks     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, userId])
+}
+
+model Timetable {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  sectionId   String
+  section     Section   @relation(fields: [sectionId], references: [id])
+  subjectId   String
+  subject     Subject   @relation(fields: [subjectId], references: [id])
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id])
+  dayOfWeek   Int
+  startTime   String
+  endTime     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// Phase 3: Advanced Workflows
+// ==========================================
+
+model Message {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  senderId    String
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id])
+  content     String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  title       String
+  description String?
+  category    String
+  startTime   DateTime
+  endTime     DateTime
+  isAllDay    Boolean   @default(false)
+  location    String?
+  priority    String    @default("NORMAL")
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Fee {
+  id            String    @id @default(uuid())
+  instituteId   String
+  institute     Institute @relation(fields: [instituteId], references: [id])
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id])
+  title         String
+  amount        Float
+  dueDate       DateTime
+  status        String
+  paidAmount    Float     @default(0)
+  paymentDate   DateTime?
+  paymentMethod String?
+  description   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ==========================================
+// Teacher Module: Topics & Content
+// ==========================================
+
+model Topic {
+  id         String   @id @default(uuid())
+  name       String
+  subjectId  String?
+  progress   Int      @default(0)
+  status     String   @default("pending")
+  chapters   Chapter[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Chapter {
+  id       String   @id @default(uuid())
+  topicId  String
+  topic    Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  name     String
+  order    Int
+  progress Int      @default(0)
+  status   String   @default("pending")
+
+  studyMaterials StudyMaterial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudyMaterial {
+  id        String   @id @default(uuid())
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  title     String
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int?
+  downloads Int      @default(0)
+  uploadedBy String?
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// Teacher Module: Schedule & Attendance (session-based)
+// ==========================================
+
+model Schedule {
+  id         String    @id @default(uuid())
+  classId    String?
+  subjectId  String?
+  teacherId  String?
+  dayOfWeek  String
+  startTime  String
+  endTime    String
+  room       String?
+  type       String    @default("offline")
+
+  attendanceSessions AttendanceSession[]
+
+  createdAt DateTime @default(now())
+}
+
+model AttendanceSession {
+  id         String    @id @default(uuid())
+  scheduleId String?
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id])
+  date       DateTime  @db.Date
+  teacherId  String?
+
+  records AttendanceRecord[]
+
+  createdAt DateTime @default(now())
+}
+
+model AttendanceRecord {
+  id        String            @id @default(uuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String?
+  status    String
+  remarks   String?
+  createdAt DateTime          @default(now())
+}
+
+// ==========================================
+// Teacher Module: Assignments & Assessments
+// ==========================================
+
+model Assignment {
+  id           String    @id @default(uuid())
+  title        String
+  type         String
+  subjectId    String?
+  classId      String?
+  dueDate      DateTime?
+  instructions String?
+  filePath     String?
+  status       String    @default("active")
+  createdAt    DateTime  @default(now())
+
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String?
+  filePath     String?
+  grade        String?
+  status       String     @default("submitted")
+  submittedAt  DateTime   @default(now())
+}
+
+model Assessment {
+  id              String    @id @default(uuid())
+  title           String
+  type            String
+  subjectId       String?
+  classId         String?
+  totalMarks      Int?
+  durationMinutes Int?
+  scheduledDate   DateTime?
+  status          String    @default("scheduled")
+  createdAt       DateTime  @default(now())
+
+  results Result[]
+}
+
+model Result {
+  id           String     @id @default(uuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  studentId    String?
+  marksObtained Int
+  totalMarks   Int
+  percentage   Float?
+  grade        String?
+  status       String     @default("pass")
+  remarks      String?
+  createdAt    DateTime   @default(now())
+
+  @@unique([assessmentId, studentId])
+}
+
+// ==========================================
+// Teacher Module: Reports
+// ==========================================
+
+model PerformanceReport {
+  id              String   @id @default(uuid())
+  studentId       String?
+  classId         String?
+  reportType      String
+  averageScore    Float?
+  attendanceRate  Float?
+  weakAreas       Json?
+  strongAreas     Json?
+  recommendations String?
+  createdAt       DateTime @default(now())
+}
+
+// ==========================================
+// Teacher Module: Grievances & Notifications
+// ==========================================
+
+model Grievance {
+  id          String    @id @default(uuid())
+  title       String
+  category    String
+  status      String    @default("open")
+  priority    String    @default("medium")
+  raisedBy    String?
+  classId     String?
+  date        DateTime  @default(now()) @db.Date
+  description String?
+  createdAt   DateTime  @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// Teacher Module: Chat
+// ==========================================
+
+model ChatRoom {
+  id           String    @id @default(uuid())
+  type         String    @default("individual")
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+  createdAt    DateTime  @default(now())
+}
+
+model ChatParticipant {
+  roomId String
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@id([roomId, userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId  String?
+  text      String
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// Teacher Module: Creator Studio
+// ==========================================
+
+model Presentation {
+  id          String   @id @default(uuid())
+  title       String
+  subject     String?
+  description String?
+  template    String?
+  pptFile     String?
+  slidesCount Int      @default(0)
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MindMap {
+  id           String   @id @default(uuid())
+  title        String
+  centralTopic String?
+  branches     String[]
+  nodes        Int      @default(0)
+  status       String   @default("active")
+  data         Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
