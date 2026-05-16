@@ -1,7 +1,33 @@
 import { query } from '../config/db.js';
 import bcrypt from 'bcryptjs';
-import { rowToCamel, rowsToCamel } from '../utils/dbRow.js';
+import { rowToCamel } from '../utils/dbRow.js';
 import { resolveInstituteId } from '../utils/instituteScope.js';
+
+function instituteCode(name = 'Eddva School') {
+  const words = String(name)
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const code = words.length > 1 ? words.map((word) => word[0]).join('') : (words[0] || 'EDDVA').slice(0, 3);
+  return code.toUpperCase().slice(0, 6);
+}
+
+async function generateScopedId(instituteId) {
+  const inst = await query(`SELECT name FROM institutes WHERE id = $1`, [instituteId]);
+  const code = instituteCode(inst.rows[0]?.name);
+  const year = new Date().getFullYear();
+  const prefix = `${code}-${year}-`;
+  const existing = await query(
+    `SELECT enrollment_no FROM students WHERE institute_id = $1 AND enrollment_no LIKE $2`,
+    [instituteId, `${prefix}%`]
+  );
+  const max = existing.rows.reduce((highest, row) => {
+    const n = Number(String(row.enrollment_no || '').replace(prefix, ''));
+    return Number.isFinite(n) ? Math.max(highest, n) : highest;
+  }, 0);
+  return `${prefix}${String(max + 1).padStart(3, '0')}`;
+}
 
 function normalizeStudentBody(body) {
   return {
@@ -15,10 +41,22 @@ function normalizeStudentBody(body) {
     sectionId: body.sectionId || null,
     dob: body.dob || null,
     gender: body.gender || null,
+    bloodGroup: body.bloodGroup || null,
+    maritalStatus: body.maritalStatus || null,
+    nationalId: body.nationalId || null,
     fatherName: body.fatherName || body.parentName || null,
     motherName: body.motherName || null,
     parentPhone: body.parentPhone || body.guardianPhone || null,
     parentEmail: body.parentEmail || null,
+    parentOccupation: body.parentOccupation || null,
+    address: body.address || body.currentAddress || null,
+    city: body.city || null,
+    state: body.state || null,
+    pinCode: body.pinCode || null,
+    admissionDate: body.admissionDate || null,
+    medicalConditions: body.medicalConditions || null,
+    allergies: body.allergies || null,
+    documents: body.documents || {},
   };
 }
 
@@ -37,6 +75,7 @@ export const createStudent = async (req, res, next) => {
     const existing = await query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, [data.email]);
     if (existing.rows.length) return res.status(400).json({ error: 'Email already exists' });
 
+    const enrollmentNo = data.enrollmentNo || await generateScopedId(instituteId);
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const userResult = await query(
       `INSERT INTO users (institute_id, name, email, password, role, photo, phone, is_active)
@@ -47,12 +86,16 @@ export const createStudent = async (req, res, next) => {
 
     const studentResult = await query(
       `INSERT INTO students (user_id, institute_id, enrollment_no, roll_no, section_id, dob, gender,
-        father_name, mother_name, parent_phone, parent_email)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        blood_group, marital_status, national_id, father_name, mother_name, parent_phone, parent_email,
+        parent_occupation, address, city, state, pin_code, admission_date, medical_conditions, allergies, documents)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
       [
-        user.id, instituteId, data.enrollmentNo, data.rollNo, data.sectionId,
+        user.id, instituteId, enrollmentNo, data.rollNo, data.sectionId,
         data.dob ? new Date(data.dob) : null, data.gender,
-        data.fatherName, data.motherName, data.parentPhone, data.parentEmail,
+        data.bloodGroup, data.maritalStatus, data.nationalId, data.fatherName, data.motherName,
+        data.parentPhone, data.parentEmail, data.parentOccupation, data.address, data.city, data.state,
+        data.pinCode, data.admissionDate ? new Date(data.admissionDate) : null,
+        data.medicalConditions, data.allergies, JSON.stringify(data.documents),
       ]
     );
 
@@ -73,6 +116,9 @@ export const listStudents = async (req, res, next) => {
     const result = await query(
       `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.photo, u.created_at,
               s.id AS profile_id, s.enrollment_no, s.roll_no, s.section_id,
+              s.dob, s.gender, s.blood_group, s.marital_status, s.national_id,
+              s.father_name, s.mother_name, s.parent_phone, s.parent_email, s.parent_occupation,
+              s.address, s.city, s.state, s.pin_code, s.admission_date, s.medical_conditions, s.allergies,
               sec.name AS section_name, c.name AS class_name
        FROM users u
        JOIN students s ON s.user_id = u.id
@@ -82,7 +128,43 @@ export const listStudents = async (req, res, next) => {
        ORDER BY u.name`,
       [instituteId]
     );
-    res.json({ success: true, data: result.rows.map((r) => rowToCamel(r)) });
+    const data = result.rows.map((row) => {
+      const r = rowToCamel(row);
+      return {
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        phone: r.phone,
+        photo: r.photo,
+        isActive: r.isActive,
+        createdAt: r.createdAt,
+        studentProfile: {
+          id: r.profileId,
+          enrollmentNo: r.enrollmentNo,
+          rollNo: r.rollNo,
+          sectionId: r.sectionId,
+          dob: r.dob,
+          gender: r.gender,
+          bloodGroup: r.bloodGroup,
+          maritalStatus: r.maritalStatus,
+          nationalId: r.nationalId,
+          fatherName: r.fatherName,
+          motherName: r.motherName,
+          parentPhone: r.parentPhone,
+          parentEmail: r.parentEmail,
+          parentOccupation: r.parentOccupation,
+          address: r.address,
+          city: r.city,
+          state: r.state,
+          pinCode: r.pinCode,
+          admissionDate: r.admissionDate,
+          medicalConditions: r.medicalConditions,
+          allergies: r.allergies,
+          section: r.sectionId ? { id: r.sectionId, name: r.sectionName, class: { name: r.className } } : null,
+        },
+      };
+    });
+    res.json({ success: true, data });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ error: error.message });
     next(error);
@@ -116,7 +198,12 @@ export const getStudent = async (req, res, next) => {
 export const updateStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, enrollmentNo, rollNo, sectionId, isActive, photo, phone } = req.body;
+    const {
+      name, enrollmentNo, rollNo, sectionId, dob, gender, bloodGroup, maritalStatus,
+      nationalId, fatherName, motherName, parentPhone, parentEmail, parentOccupation,
+      address, currentAddress, city, state, pinCode, admissionDate, medicalConditions,
+      allergies, documents, isActive, photo, phone
+    } = req.body;
 
     let userRow = await query(`SELECT * FROM users WHERE id = $1`, [id]);
     if (!userRow.rows.length) {
@@ -132,8 +219,22 @@ export const updateStudent = async (req, res, next) => {
     );
     await query(
       `UPDATE students SET enrollment_no = COALESCE($2, enrollment_no), roll_no = COALESCE($3, roll_no),
-       section_id = COALESCE($4, section_id), updated_at = NOW() WHERE user_id = $1`,
-      [userId, enrollmentNo, rollNo, sectionId]
+       section_id = COALESCE($4, section_id), dob = COALESCE($5, dob), gender = COALESCE($6, gender),
+       blood_group = COALESCE($7, blood_group), marital_status = COALESCE($8, marital_status),
+       national_id = COALESCE($9, national_id), father_name = COALESCE($10, father_name),
+       mother_name = COALESCE($11, mother_name), parent_phone = COALESCE($12, parent_phone),
+       parent_email = COALESCE($13, parent_email), parent_occupation = COALESCE($14, parent_occupation),
+       address = COALESCE($15, address), city = COALESCE($16, city), state = COALESCE($17, state),
+       pin_code = COALESCE($18, pin_code), admission_date = COALESCE($19, admission_date),
+       medical_conditions = COALESCE($20, medical_conditions), allergies = COALESCE($21, allergies),
+       documents = COALESCE($22::jsonb, documents), updated_at = NOW() WHERE user_id = $1`,
+      [
+        userId, enrollmentNo, rollNo, sectionId, dob ? new Date(dob) : null, gender,
+        bloodGroup, maritalStatus, nationalId, fatherName, motherName, parentPhone,
+        parentEmail, parentOccupation, address || currentAddress, city, state, pinCode,
+        admissionDate ? new Date(admissionDate) : null, medicalConditions, allergies,
+        documents ? JSON.stringify(documents) : null,
+      ]
     );
     res.json({ success: true });
   } catch (error) {

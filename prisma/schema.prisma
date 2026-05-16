@@ -178,9 +178,13 @@ model Teacher {
   institute   Institute @relation(fields: [instituteId], references: [id])
 
   employeeId     String?
+  bloodGroup     String?
+  maritalStatus  String?
   department     String?
   joiningDate    DateTime?
   qualifications String?
+  educationDetails Json?
+  experienceDetails Json?
 
   subjects      Subject[]
   classSections Section[] @relation("ClassTeacher")
@@ -202,6 +206,7 @@ model Student {
   dob              DateTime?
   gender           String?
   bloodGroup       String?
+  maritalStatus    String?
   nationalId       String?
   fatherName       String?
   motherName       String?

@@ -6,6 +6,33 @@ export async function stats(req, res, next) {
   try {
     const isInstituteAdmin = req.user?.role === 'INSTITUTE_ADMIN';
     const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+    const isTeacher = req.user?.role === 'TEACHER';
+
+    if (isTeacher) {
+      const instituteId = req.user.instituteId;
+      const [students, assignments, assessments, schedules] = await Promise.all([
+        query(`SELECT COUNT(*)::int AS c FROM users WHERE role = 'STUDENT' AND institute_id = $1`, [instituteId]),
+        query(`SELECT COUNT(*)::int AS c FROM assignments`),
+        query(`SELECT COUNT(*)::int AS c FROM assessments`),
+        query(
+          `SELECT s.*, c.name AS class_name, sub.name AS subject_name
+           FROM schedules s
+           LEFT JOIN classes c ON s.class_id = c.id
+           LEFT JOIN subjects sub ON s.subject_id = sub.id
+           WHERE s.teacher_id = $1
+           ORDER BY s.day_of_week, s.start_time
+           LIMIT 6`,
+          [req.user.id]
+        ),
+      ]);
+
+      return res.json({
+        totalStudents: students.rows[0].c,
+        assignments: assignments.rows[0].c,
+        assessments: assessments.rows[0].c,
+        upcomingClasses: schedules.rows.map((row) => rowToCamel(row)),
+      });
+    }
 
     if (isInstituteAdmin) {
       const instituteId = await resolveInstituteId(req.user);

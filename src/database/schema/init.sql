@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS teachers (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS blood_group VARCHAR(10);
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS marital_status VARCHAR(30);
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS education_details JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS experience_details JSONB DEFAULT '[]'::jsonb;
+
 -- ==========================================
 -- Students profile
 -- ==========================================
@@ -88,6 +93,8 @@ CREATE TABLE IF NOT EXISTS students (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE students ADD COLUMN IF NOT EXISTS marital_status VARCHAR(30);
 
 -- ==========================================
 -- Academic: Classes, Sections, Subjects

@@ -111,10 +111,10 @@ export async function login({ email, password, tenantDomain }) {
     throw err;
   }
 
-  if (!user) throw { status: 401, message: 'Invalid credentials' };
+  if (!user) throw { status: 401, message: 'Email or password incorrect' };
 
   const valid = await bcrypt.compare(password, user.password);
-  if (!valid) throw { status: 401, message: 'Invalid credentials' };
+  if (!valid) throw { status: 401, message: 'Email or password incorrect' };
   if (!user.isActive) throw { status: 403, message: 'This user account is inactive.' };
 
   if (user.role === 'SUPER_ADMIN' && normalizedTenant) {

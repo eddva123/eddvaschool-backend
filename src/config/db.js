@@ -30,9 +30,13 @@ function buildPoolConfig() {
     host: PGHOST,
     port: Number(PGPORT) || 5432,
     user: PGUSER,
-    password: PGPASSWORD == null ? '' : String(PGPASSWORD),
     database: PGDATABASE,
   };
+
+  const password = PGPASSWORD == null ? '' : String(PGPASSWORD).trim();
+  if (password) {
+    config.password = password;
+  }
 
   if (PGSSLMODE?.toLowerCase() === 'require') {
     config.ssl = { rejectUnauthorized: false };
