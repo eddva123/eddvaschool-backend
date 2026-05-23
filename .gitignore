@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 node_modules
 dist
 build
@@ -7,9 +6,3 @@ build
 .env.*.local
 uploads/
 .env.example
-=======
-node_modules/
-.env
-uploads/
-dist/
->>>>>>> 82056731b51d01bf13dd9bddb79cac76edb33741
