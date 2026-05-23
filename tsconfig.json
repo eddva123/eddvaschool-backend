@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "target": "ES2021",
     "sourceMap": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
@@ -26,5 +27,6 @@
       "@modules/*": ["src/modules/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "**/*.spec.ts", "scratch"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "scratch", "test-*.ts"]
 }

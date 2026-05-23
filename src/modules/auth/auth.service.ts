@@ -146,27 +146,39 @@ export class AuthService {
   // ── OTP ──────────────────────────────────────────────────────────────────
 
   async sendOtp(dto: SendOtpDto, tenantId: string) {
+    if (!dto.phoneNumber && !dto.email) {
+      throw new BadRequestException('Either phoneNumber or email is required');
+    }
+    const identifier = dto.phoneNumber || dto.email;
     const otpTtl = this.configService.get<number>('otp.expiresInSeconds');
     const devMode = this.configService.get<boolean>('otp.devMode');
 
     const otp = devMode ? '123456' : this.generateOtp();
-    const key = `${this.OTP_PREFIX}${dto.phoneNumber}`;
+    const key = `${this.OTP_PREFIX}${identifier}`;
 
     await this.cacheManager.set(key, otp, otpTtl * 1000);
 
     if (!devMode) {
-      // TODO: integrate Twilio SMS here
-      // await this.smsService.send(dto.phoneNumber, `Your APEXIQ OTP: ${otp}. Valid for 5 minutes.`);
-      this.logger.log(`OTP sent to ${dto.phoneNumber}`);
+      if (dto.email) {
+        this.mailService.sendOtpEmail(dto.email, otp).catch(err => this.logger.error(`Failed sending OTP email: ${err.message}`));
+        this.logger.log(`OTP sent to email ${dto.email}`);
+      } else {
+        // TODO: integrate Twilio SMS here
+        this.logger.log(`OTP sent to ${dto.phoneNumber}`);
+      }
     } else {
-      this.logger.debug(`[DEV MODE] OTP for ${dto.phoneNumber}: ${otp}`);
+      this.logger.debug(`[DEV MODE] OTP for ${identifier}: ${otp}`);
     }
 
     return { message: 'OTP sent successfully', expiresIn: otpTtl };
   }
 
   async verifyOtpAndLogin(dto: VerifyOtpDto, tenantId: string) {
-    const key = `${this.OTP_PREFIX}${dto.phoneNumber}`;
+    if (!dto.phoneNumber && !dto.email) {
+      throw new BadRequestException('Either phoneNumber or email is required');
+    }
+    const identifier = dto.phoneNumber || dto.email;
+    const key = `${this.OTP_PREFIX}${identifier}`;
     const storedOtp = await this.cacheManager.get<string>(key);
 
     if (!storedOtp || storedOtp !== dto.otp) {
@@ -177,25 +189,41 @@ export class AuthService {
     await this.cacheManager.del(key);
 
     // Find or create user
+    const whereClause = dto.email ? { email: ILike(dto.email), tenantId } : { phoneNumber: dto.phoneNumber, tenantId };
     let user = await this.userRepo.findOne({
-      where: { phoneNumber: dto.phoneNumber, tenantId },
+      where: whereClause,
     });
 
     let isNewUser = false;
 
     if (!user) {
       isNewUser = true;
+      let normalizedRole = UserRole.STUDENT;
+      if (dto.role) {
+        const r = dto.role.toUpperCase();
+        if (r === 'TEACHER') normalizedRole = UserRole.TEACHER;
+        else if (r === 'INSTITUTE_ADMIN' || r === 'ADMIN') normalizedRole = UserRole.INSTITUTE_ADMIN;
+        else if (r === 'SUPER_ADMIN') normalizedRole = UserRole.SUPER_ADMIN;
+        else if (r === 'PARENT') normalizedRole = UserRole.PARENT;
+      }
+
+      if (normalizedRole === UserRole.INSTITUTE_ADMIN || normalizedRole === UserRole.SUPER_ADMIN || normalizedRole === UserRole.TEACHER) {
+        throw new BadRequestException('Account not found. Please use the exact email registered for your Admin/Teacher account, or contact support.');
+      }
+
       user = this.userRepo.create({
-        phoneNumber: dto.phoneNumber,
-        fullName: 'Student', // updated during onboarding
+        ...(dto.email ? { email: dto.email } : { phoneNumber: dto.phoneNumber }),
+        fullName: normalizedRole === UserRole.TEACHER ? 'Teacher' : normalizedRole === UserRole.INSTITUTE_ADMIN ? 'Admin' : 'Student',
         tenantId,
-        role: UserRole.STUDENT,
+        role: normalizedRole,
         status: UserStatus.ACTIVE,
-        phoneVerified: true,
+        phoneVerified: !!dto.phoneNumber,
+        emailVerified: !!dto.email,
       });
       await this.userRepo.save(user);
     } else {
-      user.phoneVerified = true;
+      if (dto.phoneNumber) user.phoneVerified = true;
+      if (dto.email) user.emailVerified = true;
       user.lastLoginAt = new Date();
       await this.userRepo.save(user);
     }

@@ -33,6 +33,10 @@ export class SendEmailOtpDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
 export class VerifyEmailOtpDto {
@@ -46,6 +50,10 @@ export class VerifyEmailOtpDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
 export class OtpRegisterDto {

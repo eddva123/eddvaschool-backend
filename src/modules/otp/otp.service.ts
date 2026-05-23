@@ -2,6 +2,7 @@ import {
   Injectable, BadRequestException, HttpException, HttpStatus, Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cache } from 'cache-manager';
@@ -17,6 +18,7 @@ import {
   SendEmailOtpDto,  VerifyEmailOtpDto,
   OtpRegisterDto,
 } from './dto/otp.dto';
+import { UserRole } from '../../database/entities/user.entity';
 
 const MAX_ATTEMPTS = 3;
 const OTP_TTL_SECONDS = 300; // 5 minutes
@@ -45,6 +47,7 @@ export class OtpService {
 
   constructor(
     private readonly config: ConfigService,
+    private readonly jwtService: JwtService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {
@@ -213,14 +216,16 @@ export class OtpService {
     const fromEmail = this.config.get<string>('RESEND_FROM_EMAIL') || 'EDDVA <noreply@eddva.in>';
 
     try {
-      await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from:    fromEmail,
         to:      [dto.email],
         subject: `${otp} is your EDDVA verification code`,
         html:    buildOtpEmailHtml(otp, userName),
       });
+
+      this.logger.log(`Resend accepted OTP email for ${maskEmail(dto.email)}${result?.data?.id ? ` (id: ${result.data.id})` : ''}`);
     } catch (err: any) {
-      this.logger.error('Resend email error', err?.message);
+      this.logger.error('Resend email error', err?.message, err?.stack);
       throw new BadRequestException('Failed to send email OTP. Please try again.');
     }
 
@@ -246,14 +251,103 @@ export class OtpService {
 
     await this.cache.del(cacheKey);
 
-    // Mark email verified + activate user
-    if (dto.userId) {
-      await this.userRepo.update(dto.userId, {
-        emailVerified: true,
-        status: 'active',
-      } as any);
+    // Complete sign-in after successful verification.
+    const requestedRole = dto.role ? this.normalizeUserRole(dto.role) : undefined;
+    const user = dto.userId
+      ? await this.userRepo.findOne({ where: { id: dto.userId }, relations: ['tenant'] })
+      : await this.userRepo.findOne({
+          where: requestedRole
+            ? { email: dto.email, role: requestedRole }
+            : { email: dto.email },
+          relations: ['tenant'],
+        });
+
+    if (!user) {
+      throw new BadRequestException('No account found for this email in the selected login portal.');
     }
 
-    return { verified: true, message: 'Email verified successfully.' };
+    if (dto.role) {
+      const storedRole = this.normalizeStoredUserRole(user.role);
+      if (requestedRole && storedRole !== requestedRole) {
+        throw new BadRequestException('This email belongs to a different role. Use the correct login portal.');
+      }
+    }
+
+    user.emailVerified = true;
+    user.status = 'active' as any;
+    user.lastLoginAt = new Date();
+
+    const tokens = await this.generateTokens(user);
+    await user.hashRefreshToken(tokens.refreshToken);
+    await this.userRepo.save(user);
+
+    const institute = user.tenant
+      ? {
+          id: user.tenant.id,
+          name: user.tenant.name,
+          tenantDomain: user.tenant.subdomain,
+          subdomain: user.tenant.subdomain,
+          logo: user.tenant.logoUrl || null,
+        }
+      : null;
+
+    return {
+      verified: true,
+      message: 'Email verified successfully.',
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      tenantDomain: user.tenant?.subdomain || null,
+      institute,
+      user: {
+        id: user.id,
+        tenantId: user.tenantId,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        fullName: user.fullName,
+        profilePictureUrl: user.profilePictureUrl,
+        phoneVerified: user.phoneVerified,
+        emailVerified: user.emailVerified,
+        isFirstLogin: user.isFirstLogin,
+        lastLoginAt: user.lastLoginAt,
+        role: this.normalizeStoredUserRole(user.role) || user.role,
+        status: user.status,
+      },
+    };
+  }
+
+  private async generateTokens(user: User) {
+    const payload = {
+      sub: user.id,
+      tenantId: user.tenantId,
+      role: user.role,
+    };
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: this.config.get('jwt.secret'),
+        expiresIn: this.config.get('jwt.expiresIn'),
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: this.config.get('jwt.refreshSecret'),
+        expiresIn: this.config.get('jwt.refreshExpiresIn'),
+      }),
+    ]);
+
+    return { accessToken, refreshToken };
+  }
+
+  private normalizeUserRole(role?: string) {
+    const value = String(role || '').toLowerCase();
+    if (value === 'super_admin' || value === 'super admin') return UserRole.SUPER_ADMIN;
+    if (value === 'institute_admin' || value === 'institute admin' || value === 'admin') return UserRole.INSTITUTE_ADMIN;
+    if (value === 'teacher') return UserRole.TEACHER;
+    if (value === 'student') return UserRole.STUDENT;
+    if (value === 'parent') return UserRole.PARENT;
+    return undefined;
+  }
+
+  private normalizeStoredUserRole(role?: string) {
+    return this.normalizeUserRole(String(role || '').replace(/-/g, '_').replace(/\s+/g, '_'));
   }
 }

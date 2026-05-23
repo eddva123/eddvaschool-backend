@@ -142,4 +142,38 @@ export class MailService {
       return { sent: false, error: err.message };
     }
   }
+
+  async sendOtpEmail(to: string, otp: string): Promise<{ sent: boolean; devMode?: boolean; error?: string }> {
+    const subject = 'Your EDVA Login OTP';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #6366f1;">EDVA Login</h2>
+        <p>Your One-Time Password (OTP) for login is:</p>
+        <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
+          <h1 style="letter-spacing: 4px; color: #333; margin: 0;">${otp}</h1>
+        </div>
+        <p>This code is valid for 5 minutes. Please do not share it with anyone.</p>
+        <p style="color: #888; font-size: 12px;">— EDVA Platform</p>
+      </div>
+    `;
+
+    if (this.devMode) {
+      this.logger.debug(`[DEV MODE] OTP email for ${to}: ${otp}`);
+      return { sent: false, devMode: true };
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.config.get('mail.from'),
+        to,
+        subject,
+        html,
+      });
+      this.logger.log(`OTP email sent to ${to}`);
+      return { sent: true };
+    } catch (err) {
+      this.logger.error(`Failed to send OTP email to ${to}: ${err.message}`);
+      return { sent: false, error: err.message };
+    }
+  }
 }

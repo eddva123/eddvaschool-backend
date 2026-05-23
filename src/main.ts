@@ -1,19 +1,16 @@
+import 'reflect-metadata';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, VersioningType, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
-import { mkdirSync, existsSync } from 'fs';
-import * as dotenv from 'dotenv';
+import { mkdirSync } from 'fs';
 import helmet from 'helmet';
 import compression from 'compression';
+import './bootstrap-env';
 import { AppModule } from './app.module';
 
-// Load env files early with override so .env.local always wins over .env and process.env
-for (const file of ['.env', '.env.local']) {
-  if (existsSync(file)) dotenv.config({ path: file, override: true });
-}
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

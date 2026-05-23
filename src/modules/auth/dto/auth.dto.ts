@@ -83,17 +83,37 @@ export class StudentRegisterDto {
 }
 
 export class SendOtpDto {
-  @ApiProperty({ example: '+919876543210' })
+  @ApiPropertyOptional({ example: '+919876543210' })
+  @IsOptional()
   @IsPhoneNumber('IN')
-  @IsNotEmpty()
-  phoneNumber: string;
+  phoneNumber?: string;
+
+  @ApiPropertyOptional({ example: 'admin@institute.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ example: 'INSTITUTE_ADMIN' })
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
 export class VerifyOtpDto {
-  @ApiProperty({ example: '+919876543210' })
+  @ApiPropertyOptional({ example: '+919876543210' })
+  @IsOptional()
   @IsPhoneNumber('IN')
-  @IsNotEmpty()
-  phoneNumber: string;
+  phoneNumber?: string;
+
+  @ApiPropertyOptional({ example: 'admin@institute.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ example: 'INSTITUTE_ADMIN' })
+  @IsOptional()
+  @IsString()
+  role?: string;
 
   @ApiProperty({ example: '123456' })
   @IsString()

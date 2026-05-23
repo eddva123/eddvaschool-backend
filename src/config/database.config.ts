@@ -27,8 +27,8 @@ export const dbConfig: DataSourceOptions = {
     family: 4, // Force IPv4 — Supabase host resolves to IPv6 only by default
     // Allow up to 30 connections per process; override with DB_POOL_MAX env var
     max: parseInt(process.env.DB_POOL_MAX || '30'),
-    // Idle connections released after 10 s to keep the pool lean
-    idleTimeoutMillis: 10_000,
+    // Idle connections released after 5 minutes to keep the pool warm and avoid TLS handshake latency
+    idleTimeoutMillis: 300_000,
   },
   entities: [__dirname + '/../database/entities/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],

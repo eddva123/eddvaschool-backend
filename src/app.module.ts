@@ -43,6 +43,8 @@ import {
   XpConfig, XpTransaction, LeaderboardCycle, LeaderboardGroup,
   LeaderboardGroupMember, VideoWatchSession, StudentLevelHistory,
 } from './database/entities/xp.entity';
+import { Assignment } from './assignments/entities/assignment.entity';
+import { Fee, Transaction } from './database/entities/finance.entity';
 
 
 // ── Modules ───────────────────────────────────────────────────────────────────
@@ -73,6 +75,9 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { UploadModule } from './modules/upload/upload.module';
+import { AssignmentsModule } from './assignments/assignments.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { CompatModule } from './modules/compat/compat.module';
 
 const ALL_ENTITIES = [
   Tenant, User, Student,
@@ -93,6 +98,9 @@ const ALL_ENTITIES = [
   ExamSyllabusCache,
   XpConfig, XpTransaction, LeaderboardCycle, LeaderboardGroup,
   LeaderboardGroupMember, VideoWatchSession, StudentLevelHistory,
+  Assignment,
+  Fee,
+  Transaction,
 ];
 
 @Module({
@@ -200,6 +208,9 @@ const ALL_ENTITIES = [
     TypeOrmModule.forFeature([Tenant]),
 
     UploadModule,
+    AssignmentsModule,
+    FinanceModule,
+    CompatModule,
   ],
   providers: [
     // Global exception filter
