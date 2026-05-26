@@ -86,12 +86,25 @@ export class StudentController {
   }
 
   // ─── WEEKLY ACTIVITY ─────────────────────────────────────────────────────────
+  @Get('activity/weekly')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: '7-day activity chart (compatibility mapping)' })
+  getWeeklyActivityCompat(@CurrentUser() user: any, @TenantId() tenantId: string) {
+    return this.studentService.getWeeklyActivity(user.id, tenantId);
+  }
 
   @Get('weekly-activity')
   @Roles(UserRole.STUDENT)
   @ApiOperation({ summary: '7-day activity chart — lectures watched, topics completed, tests taken per day' })
   getWeeklyActivity(@CurrentUser() user: any, @TenantId() tenantId: string) {
     return this.studentService.getWeeklyActivity(user.id, tenantId);
+  }
+
+  @Get('courses/my')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'List all enrolled courses (compatibility mapping)' })
+  getMyCoursesCompat(@CurrentUser() user: any, @TenantId() tenantId: string) {
+    return this.studentService.getMyCourses(user.id, tenantId);
   }
 
   // ─── PROFILE ─────────────────────────────────────────────────────────────────

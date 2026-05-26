@@ -189,7 +189,15 @@ export class AuthService {
     await this.cacheManager.del(key);
 
     // Find or create user
-    const whereClause = dto.email ? { email: ILike(dto.email), tenantId } : { phoneNumber: dto.phoneNumber, tenantId };
+    const whereClause = dto.email
+      ? [
+          { email: ILike(dto.email), tenantId },
+          { email: ILike(dto.email), tenantId: IsNull() },
+        ]
+      : [
+          { phoneNumber: dto.phoneNumber, tenantId },
+          { phoneNumber: dto.phoneNumber, tenantId: IsNull() },
+        ];
     let user = await this.userRepo.findOne({
       where: whereClause,
     });
@@ -207,12 +215,14 @@ export class AuthService {
         else if (r === 'PARENT') normalizedRole = UserRole.PARENT;
       }
 
-      if (normalizedRole === UserRole.INSTITUTE_ADMIN || normalizedRole === UserRole.SUPER_ADMIN || normalizedRole === UserRole.TEACHER) {
-        throw new BadRequestException('Account not found. Please use the exact email registered for your Admin/Teacher account, or contact support.');
+      if (normalizedRole === UserRole.SUPER_ADMIN) {
+        throw new BadRequestException('Account not found. Please use the exact email registered for your Super Admin account, or contact support.');
       }
 
       user = this.userRepo.create({
-        ...(dto.email ? { email: dto.email } : { phoneNumber: dto.phoneNumber }),
+        phoneNumber: dto.phoneNumber || null,
+        email: dto.email || `${dto.phoneNumber?.replace(/[^0-9]/g, '') || Date.now()}@eddva.local`,
+        password: this.generateTempPassword(),
         fullName: normalizedRole === UserRole.TEACHER ? 'Teacher' : normalizedRole === UserRole.INSTITUTE_ADMIN ? 'Admin' : 'Student',
         tenantId,
         role: normalizedRole,

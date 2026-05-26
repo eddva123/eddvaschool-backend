@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
 @Entity('assignments')
 export class Assignment {
@@ -8,27 +8,27 @@ export class Assignment {
   @Column()
   title: string;
 
-  @Column('text')
+  @Column({ default: 'homework' })
+  type: string;
+
+  @Column({ name: 'instructions', type: 'text', nullable: true })
   description: string;
 
-  @Column()
+  @Column({ name: 'class_id' })
   classId: string;
 
-  @Column()
+  @Column({ name: 'subject_id' })
   subjectId: string;
 
-  @Column({ type: 'date' })
+  @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
   dueDate: Date;
 
-  @Column({ type: 'int', default: 100 })
-  maxMarks: number;
+  @Column({ name: 'file_path', nullable: true })
+  filePath: string;
 
-  @Column({ default: 'Active' })
+  @Column({ default: 'active' })
   status: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
 }

@@ -50,8 +50,8 @@ export class UpdateChapterDto extends PartialType(CreateChapterDto) {
 }
 
 export class ChapterQueryDto {
-    @ApiProperty({ example: 'uuid-of-subject' })
+    @ApiPropertyOptional({ example: 'uuid-of-subject' })
     @IsUUID()
-    @IsNotEmpty()
-    subjectId: string;
+    @IsOptional()
+    subjectId?: string;
 }

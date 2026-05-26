@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
 import { Topic } from './subject.entity';
@@ -7,7 +7,7 @@ import { User } from './user.entity';
 
 // ─── Performance Profile ──────────────────────────────────────────────────────
 @Entity('performance_profiles')
-export class PerformanceProfile extends Base {
+export class PerformanceProfile extends BaseWithDelete {
   @Column({ name: 'student_id', unique: true })
   studentId: string;
 
@@ -46,7 +46,7 @@ export enum WeakTopicSeverity {
 }
 
 @Entity('weak_topics')
-export class WeakTopic extends Base {
+export class WeakTopic extends BaseWithDelete {
   @Column({ name: 'student_id' })
   studentId: string;
 
@@ -97,7 +97,7 @@ export enum EngagementContext {
 }
 
 @Entity('engagement_logs')
-export class EngagementLog extends Base {
+export class EngagementLog extends BaseWithDelete {
   @Column({ name: 'student_id' })
   studentId: string;
 
@@ -145,7 +145,7 @@ export enum LeaderboardPeriod {
 }
 
 @Entity('leaderboard_entries')
-export class LeaderboardEntry extends Base {
+export class LeaderboardEntry extends BaseWithDelete {
   @Column({ name: 'student_id' })
   studentId: string;
 

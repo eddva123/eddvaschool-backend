@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
 import { Question } from './question.entity';
@@ -26,7 +26,7 @@ export enum MockTestScope {
 }
 
 @Entity('mock_tests')
-export class MockTest extends Base {
+export class MockTest extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -110,7 +110,7 @@ export enum TestSessionStatus {
 }
 
 @Entity('test_sessions')
-export class TestSession extends Base {
+export class TestSession extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -195,7 +195,7 @@ export enum ErrorType {
 }
 
 @Entity('question_attempts')
-export class QuestionAttempt extends Base {
+export class QuestionAttempt extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -257,7 +257,7 @@ export enum TopicStatus {
 }
 
 @Entity('topic_progress')
-export class TopicProgress extends Base {
+export class TopicProgress extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 

@@ -45,6 +45,7 @@ import {
 } from './database/entities/xp.entity';
 import { Assignment } from './assignments/entities/assignment.entity';
 import { Fee, Transaction } from './database/entities/finance.entity';
+import { Complaint } from './database/entities/complaint.entity';
 
 
 // ── Modules ───────────────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ const ALL_ENTITIES = [
   Assignment,
   Fee,
   Transaction,
+  Complaint,
 ];
 
 @Module({

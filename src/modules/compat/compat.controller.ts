@@ -1,9 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 
-import { CurrentUser } from '../../common/decorators/auth.decorator';
+import { CurrentUser, TenantId } from '../../common/decorators/auth.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CompatService } from './compat.service';
 
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class CompatController {
   constructor(private readonly compatService: CompatService) {}
 
@@ -31,21 +33,26 @@ export class CompatController {
 
   @Get('dashboard/stats')
   getDashboardStats(@CurrentUser() user: any, @Query('tenantId') queryTenantId: string) {
-    return this.compatService.getPlatformStats(user?.tenantId || queryTenantId);
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const tenantId = isSuperAdmin ? (queryTenantId || undefined) : (user?.tenantId || queryTenantId);
+    return this.compatService.getPlatformStats(tenantId);
   }
 
   @Get('students')
-  getStudents(@Query() query: Record<string, any>) {
+  getStudents(@Query() query: Record<string, any>, @TenantId() tenantId: string) {
+    if (!query.tenantId && tenantId) query.tenantId = tenantId;
     return this.compatService.getStudents(query);
   }
 
   @Post('students')
-  createStudent(@Body() body: Record<string, any>, @CurrentUser() user: any) {
+  createStudent(@Body() body: Record<string, any>, @CurrentUser() user: any, @TenantId() tenantId: string) {
+    if (tenantId) body.tenantId = tenantId;
     return this.compatService.createStudent(body, user);
   }
 
   @Put('students/:id')
-  updateStudent(@Param('id') id: string, @Body() body: Record<string, any>, @CurrentUser() user: any) {
+  updateStudent(@Param('id') id: string, @Body() body: Record<string, any>, @CurrentUser() user: any, @TenantId() tenantId: string) {
+    if (tenantId) body.tenantId = tenantId;
     return this.compatService.updateStudent(id, body, user);
   }
 
@@ -55,17 +62,20 @@ export class CompatController {
   }
 
   @Get('teachers')
-  getTeachers(@Query() query: Record<string, any>) {
+  getTeachers(@Query() query: Record<string, any>, @TenantId() tenantId: string) {
+    if (!query.tenantId && tenantId) query.tenantId = tenantId;
     return this.compatService.getTeachers(query);
   }
 
   @Post('teachers')
-  createTeacher(@Body() body: Record<string, any>, @CurrentUser() user: any) {
+  createTeacher(@Body() body: Record<string, any>, @CurrentUser() user: any, @TenantId() tenantId: string) {
+    if (tenantId) body.tenantId = tenantId;
     return this.compatService.createTeacher(body, user);
   }
 
   @Put('teachers/:id')
-  updateTeacher(@Param('id') id: string, @Body() body: Record<string, any>, @CurrentUser() user: any) {
+  updateTeacher(@Param('id') id: string, @Body() body: Record<string, any>, @CurrentUser() user: any, @TenantId() tenantId: string) {
+    if (tenantId) body.tenantId = tenantId;
     return this.compatService.updateTeacher(id, body, user);
   }
 
@@ -331,7 +341,7 @@ export class CompatController {
   }
 
   @Post('attendance/mark')
-  markAttendance(@Body() body: Record<string, any>, @CurrentUser() user: any) {
+  markAttendanceMark(@Body() body: Record<string, any>, @CurrentUser() user: any) {
     return this.compatService.markAttendance(body, user);
   }
 

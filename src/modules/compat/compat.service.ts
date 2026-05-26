@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, Repository, IsNull } from 'typeorm';
 
@@ -158,9 +158,9 @@ export class CompatService {
   }
 
   async getPlatformStats(tenantId?: string) {
-    const userWhere = tenantId ? { tenantId, deletedAt: IsNull() } : { deletedAt: IsNull() };
+    const userWhere = tenantId ? { tenantId } : {};
     const enrollmentWhere = tenantId ? { tenantId, deletedAt: IsNull() } : { deletedAt: IsNull() };
-    const studentQuery = tenantId ? 'SELECT COUNT(s.id)::int AS count FROM students s JOIN users u ON u.id = s.user_id WHERE u.tenant_id = $1 AND s.deleted_at IS NULL' : 'SELECT COUNT(*)::int AS count FROM students WHERE deleted_at IS NULL';
+    const studentQuery = tenantId ? 'SELECT COUNT(s.id)::int AS count FROM students s JOIN users u ON u.id = s.user_id WHERE u.institute_id = $1' : 'SELECT COUNT(*)::int AS count FROM students';
     const studentParams = tenantId ? [tenantId] : [];
 
     const [tenants, users, students, enrollments] = await Promise.all([
@@ -596,19 +596,27 @@ export class CompatService {
   }
 
   async getChatMessages(peerId: string, currentUser: any) {
+    const currentUserId = currentUser?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const conversation = this.chatMessages.filter(
       (message) =>
-        (message.sender_id === currentUser.id && message.receiver_id === peerId) ||
-        (message.sender_id === peerId && message.receiver_id === currentUser.id),
+        (message.sender_id === currentUserId && message.receiver_id === peerId) ||
+        (message.sender_id === peerId && message.receiver_id === currentUserId),
     );
 
     return conversation.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async sendChatMessage(payload: Record<string, any>, currentUser: any) {
+    const currentUserId = currentUser?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const message = {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      sender_id: currentUser.id,
+      sender_id: currentUserId,
       receiver_id: String(payload.receiverId || payload.receiver_id || ''),
       content: String(payload.content || ''),
       createdAt: new Date().toISOString(),
@@ -620,9 +628,13 @@ export class CompatService {
   }
 
   async markChatAsRead(peerId: string, currentUser: any) {
+    const currentUserId = currentUser?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const now = new Date().toISOString();
     this.chatMessages.forEach((message) => {
-      if (message.sender_id === peerId && message.receiver_id === currentUser.id) {
+      if (message.sender_id === peerId && message.receiver_id === currentUserId) {
         message.readAt = now;
       }
     });
@@ -1136,21 +1148,21 @@ export class CompatService {
   private async getRoleUsers(role: string, search = '', tenantId?: string) {
     const normalizedRole = this.normalizeUserRole(role);
     const qb = this.userRepo
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.tenant', 'tenant')
-      .where('user.deletedAt IS NULL');
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.tenant', 'tenant')
+      .where('u.deletedAt IS NULL');
 
     if (normalizedRole) {
-      qb.andWhere('user.role = :role', { role: normalizedRole });
+      qb.andWhere('u.role = :role', { role: normalizedRole });
     }
     if (tenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+      qb.andWhere('u.tenantId = :tenantId', { tenantId });
     }
     if (search) {
-      qb.andWhere('(user.fullName ILIKE :search OR user.email ILIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(u.fullName ILIKE :search OR u.email ILIKE :search)', { search: `%${search}%` });
     }
 
-    const users = await qb.orderBy('user.fullName', 'ASC').take(50).getMany();
+    const users = await qb.orderBy('u.fullName', 'ASC').take(50).getMany();
     return users;
   }
 
@@ -1253,7 +1265,7 @@ export class CompatService {
     }
 
     if (query.search) {
-      filters.push(`(LOWER(u.full_name) LIKE LOWER($${index}) OR LOWER(u.email) LIKE LOWER($${index}) OR u.phone_number LIKE $${index})`);
+      filters.push(`(LOWER(u.name) LIKE LOWER($${index}) OR LOWER(u.email) LIKE LOWER($${index}) OR u.phone LIKE $${index})`);
       params.push(`%${String(query.search)}%`);
       index += 1;
     }
@@ -1269,9 +1281,9 @@ export class CompatService {
         e.fee_paid_at,
 
         s.id              AS student_id,
-        u.full_name       AS student_name,
+        u.name            AS student_name,
         u.email           AS student_email,
-        u.phone_number    AS student_phone,
+        u.phone           AS student_phone,
         s.care_of         AS care_of,
         s.city            AS city,
         s.state           AS state,
@@ -1314,9 +1326,9 @@ export class CompatService {
         e.fee_paid_at,
 
         s.id              AS student_id,
-        u.full_name       AS student_name,
+        u.name            AS student_name,
         u.email           AS student_email,
-        u.phone_number    AS student_phone,
+        u.phone           AS student_phone,
         s.care_of         AS care_of,
         s.city            AS city,
         s.state           AS state,

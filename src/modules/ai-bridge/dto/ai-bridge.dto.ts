@@ -5,6 +5,7 @@ import {
   IsArray,
   IsObject,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   Min,
   Max,
@@ -107,7 +108,7 @@ export class DetectEngagementDto {
 
 // ── AI #6 — Content Recommendation ──────────────────────────────────────────
 export class RecommendContentDto {
-  @IsEnum(['post_test', 'post_wrong_answer', 'dashboard'])
+  @IsIn(['post_test', 'post_wrong_answer', 'dashboard'])
   context: 'post_test' | 'post_wrong_answer' | 'dashboard';
 
   @IsArray()
@@ -129,7 +130,7 @@ export class GenerateLectureNotesDto {
   @IsOptional()
   topicId?: string;
 
-  @IsEnum(['en', 'hi', 'hinglish', 'hi-in'])
+  @IsIn(['en', 'hi', 'hinglish', 'hi-in'])
   @IsOptional()
   language?: 'en' | 'hi' | 'hinglish' | 'hi-in';
 
@@ -140,8 +141,8 @@ export class GenerateLectureNotesDto {
 
 // ── AI #8 — Student Feedback ─────────────────────────────────────────────────
 export class GenerateFeedbackDto {
-  @IsEnum(['post_test', 'weekly_summary', 'battle_result'])
-  context: 'post_test' | 'weekly_summary' | 'battle_result';
+  @IsIn(['post_test', 'weekly_summary', 'battle_result', 'student_general_feedback', 'performance_review'])
+  context: 'post_test' | 'weekly_summary' | 'battle_result' | 'student_general_feedback' | 'performance_review';
 
   @IsObject()
   data: any;

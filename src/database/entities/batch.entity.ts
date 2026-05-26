@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { User } from './user.entity';
 import { Student } from './student.entity';
@@ -17,7 +17,7 @@ export enum BatchDeliveryMode {
 }
 
 @Entity('batches')
-export class Batch extends Base {
+export class Batch extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -81,7 +81,7 @@ export class Batch extends Base {
 
 @Entity('batch_subject_teachers')
 @Unique('UQ_batch_subject', ['batchId', 'subjectName'])
-export class BatchSubjectTeacher extends Base {
+export class BatchSubjectTeacher extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -110,7 +110,7 @@ export enum EnrollmentStatus {
 }
 
 @Entity('enrollments')
-export class Enrollment extends Base {
+export class Enrollment extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 

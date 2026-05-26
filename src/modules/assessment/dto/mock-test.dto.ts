@@ -48,6 +48,10 @@ export class MockTestListQueryDto {
   examMode?: string;
 
   @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

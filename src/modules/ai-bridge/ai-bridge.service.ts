@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
+import { LLMService } from '../../ai/llm.service';
 
 /**
  * AiBridgeService
@@ -25,6 +26,7 @@ export class AiBridgeService {
   constructor(
     private readonly http: HttpService,
     config: ConfigService,
+    private readonly llm: LLMService,
   ) {
     this.baseUrl = config.get<string>('ai.baseUrl');
     this.apiKey = config.get<string>('ai.apiKey');
@@ -77,10 +79,44 @@ export class AiBridgeService {
     },
     tenantId?: string,
   ) {
-    return this.post('/doubt/resolve', {
-      ...payload,
-      questionText: this.withMathDerivationStyleHint(payload.questionText),
-    }, tenantId);
+    try {
+      return await this.post('/doubt/resolve', {
+        ...payload,
+        questionText: this.withMathDerivationStyleHint(payload.questionText),
+      }, tenantId);
+    } catch (err) {
+      this.logger.warn(`Doubt resolution E2E post failed, falling back directly to Gemini API: ${err instanceof Error ? err.message : String(err)}`);
+      
+      const systemPrompt = `You are an expert JEE/NEET tutor. Solve the student's doubt.
+Respond ONLY in valid JSON format with the following keys:
+{
+  "explanation": "Detailed explanation of the concept and solution.",
+  "steps": ["Step 1 description...", "Step 2 description...", "Step 3 description..."],
+  "answer": "Final concise answer"
+}`;
+      const userPrompt = `Student Question: ${payload.questionText}\nMode: ${payload.mode}`;
+      
+      const res = await this.llm.complete([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], { temperature: 0.3 });
+
+      if (res.error) {
+        throw new Error(res.error);
+      }
+
+      try {
+        const cleaned = res.text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+        return JSON.parse(cleaned);
+      } catch (jsonErr) {
+        this.logger.error(`Failed to parse Gemini E2E doubt response: ${res.text}`);
+        return {
+          explanation: res.text,
+          steps: [res.text],
+          answer: res.text
+        };
+      }
+    }
   }
 
   /**
@@ -212,12 +248,33 @@ export class AiBridgeService {
   async generateFeedback(
     payload: {
       studentId: string;
-      context: 'post_test' | 'weekly_summary' | 'battle_result';
+      context: 'post_test' | 'weekly_summary' | 'battle_result' | 'student_general_feedback' | 'performance_review';
       data: any;
     },
     tenantId?: string,
   ) {
-    return this.post('/feedback/generate', payload, tenantId);
+    try {
+      return await this.post('/feedback/generate', payload, tenantId);
+    } catch (err) {
+      this.logger.warn(`Feedback generation post failed, falling back directly to Gemini API: ${err instanceof Error ? err.message : String(err)}`);
+      
+      const systemPrompt = `You are an expert JEE/NEET AI mentor. Generate personalized, encouraging, and highly constructive feedback for the student based on the given context and performance data. Keep it concise, professional, and actionable.`;
+      const userPrompt = `Context: ${payload.context}\nData: ${JSON.stringify(payload.data)}`;
+      
+      const res = await this.llm.complete([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], { temperature: 0.5 });
+
+      if (res.error) {
+        throw new Error(res.error);
+      }
+
+      return {
+        success: true,
+        feedback: res.text || 'You are doing great! Focus on completing your pending assignments.'
+      };
+    }
   }
 
   // ── AI #9 — Notes Weak Topic Identifier ──────────────────────────────────

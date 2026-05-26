@@ -11,39 +11,39 @@ export enum ResourceType {
   VIDEO = 'video',
   LINK = 'link',
 }
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 
 // ─── Subject ─────────────────────────────────────────────────────────────────
 @Entity('subjects')
 export class Subject extends Base {
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id' })
   tenantId: string;
 
   @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
-  @Column({ name: 'batch_id', nullable: true })
-  batchId: string | null;
+  @Column({ name: 'batch_id', type: 'uuid', nullable: true })
+  batchId: string | null = null;
 
   @Column()
   name: string; // Physics, Chemistry, Mathematics, Biology
 
-  @Column({ name: 'exam_target', type: 'varchar', length: 120 })
-  examTarget: string;
+  @Column({ name: 'exam_target', type: 'varchar', length: 50, default: 'jee' })
+  examTarget: string = 'jee';
 
-  @Column({ nullable: true })
-  icon: string;
+  @Column({ type: 'varchar', length: 100, default: '' })
+  icon: string = '';
 
-  @Column({ name: 'color_code', nullable: true })
-  colorCode: string;
+  @Column({ name: 'color_code', type: 'varchar', length: 20, default: '' })
+  colorCode: string = '';
 
-  @Column({ name: 'sort_order', default: 0 })
-  sortOrder: number;
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder: number = 0;
 
-  @Column({ name: 'is_active', default: true })
-  isActive: boolean;
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean = true;
 
   @OneToMany(() => Chapter, (c) => c.subject)
   chapters: Chapter[];
@@ -52,34 +52,32 @@ export class Subject extends Base {
 // ─── Chapter ──────────────────────────────────────────────────────────────────
 @Entity('chapters')
 export class Chapter extends Base {
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id' })
   tenantId: string;
 
-  @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
   tenant: Tenant;
 
-  @Column({ name: 'subject_id' })
-  subjectId: string;
+  @Column({ name: 'subject_id', type: 'uuid' })
+  subjectId: string = '';
 
-  @ManyToOne(() => Subject, (s) => s.chapters)
+  @ManyToOne(() => Subject, (s) => s.chapters, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'subject_id' })
   subject: Subject;
 
   @Column()
   name: string; // e.g. "Thermodynamics"
 
-  @Column({ name: 'sort_order', default: 0 })
-  sortOrder: number;
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder: number = 0;
 
   @Column({ name: 'jee_weightage', type: 'float', default: 0 })
-  jeeWeightage: number; // % of marks in JEE historically
+  jeeWeightage: number = 0;
 
   @Column({ name: 'neet_weightage', type: 'float', default: 0 })
-  neetWeightage: number;
+  neetWeightage: number = 0;
 
-  @Column({ name: 'is_active', default: true })
-  isActive: boolean;
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean = true;
 
   @OneToMany(() => Topic, (t) => t.chapter)
   topics: Topic[];
@@ -88,38 +86,37 @@ export class Chapter extends Base {
 // ─── Topic ────────────────────────────────────────────────────────────────────
 @Entity('topics')
 export class Topic extends Base {
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id' })
   tenantId: string;
 
   @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
-  @Column({ name: 'chapter_id' })
+  @Column({ name: 'subject_id' })
   chapterId: string;
 
   @ManyToOne(() => Chapter, (c) => c.topics)
-  @JoinColumn({ name: 'chapter_id' })
+  @JoinColumn({ name: 'subject_id' })
   chapter: Chapter;
 
   @Column()
   name: string; // e.g. "Carnot Engine"
 
-  @Column({ name: 'sort_order', default: 0 })
-  sortOrder: number;
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder: number = 0;
 
-  @Column({ name: 'gate_pass_percentage', type: 'float', default: 70 })
-  gatePassPercentage: number; // default 70% to unlock next topic
+  @Column({ name: 'gate_pass_percentage', type: 'int', default: 70 })
+  gatePassPercentage: number = 70;
 
-  @Column({ name: 'estimated_study_minutes', default: 60 })
-  estimatedStudyMinutes: number;
+  @Column({ name: 'estimated_study_minutes', type: 'int', default: 60 })
+  estimatedStudyMinutes: number = 60;
 
-  @Column({ name: 'is_active', default: true })
-  isActive: boolean;
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean = true;
 
-  // ── Prerequisites ──────────────────────────────────────────────────────────
-  @Column({ name: 'prerequisite_topic_ids', type: 'jsonb', default: [] })
-  prerequisiteTopicIds: string[];
+  @Column({ name: 'prerequisite_topic_ids', type: 'simple-array', nullable: true })
+  prerequisiteTopicIds: string[] = [];
 
   @OneToMany(() => TopicResource, (r) => r.topic)
   resources: TopicResource[];
@@ -127,7 +124,7 @@ export class Topic extends Base {
 
 // ─── TopicResource ────────────────────────────────────────────────────────────
 @Entity('topic_resources')
-export class TopicResource extends Base {
+export class TopicResource extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 

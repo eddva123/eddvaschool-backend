@@ -1,5 +1,5 @@
 import { Entity, Column, OneToMany } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 
 export enum TenantType {
   PLATFORM = 'platform',
@@ -22,7 +22,7 @@ export enum TenantPlan {
 }
 
 @Entity('tenants')
-export class Tenant extends Base {
+export class Tenant extends BaseWithDelete {
   @Column({ unique: true })
   name: string;
 

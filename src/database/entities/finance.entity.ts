@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
 
@@ -12,11 +12,11 @@ export enum FeeStatus {
 
 @Entity('fees')
 export class Fee extends Base {
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id' })
   tenantId: string;
 
   @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
   @Column({ name: 'student_id' })
@@ -43,7 +43,7 @@ export class Fee extends Base {
 }
 
 @Entity('transactions')
-export class Transaction extends Base {
+export class Transaction extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 

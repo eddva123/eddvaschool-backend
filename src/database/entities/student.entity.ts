@@ -48,11 +48,11 @@ export enum SubscriptionPlan {
 
 @Entity('students')
 export class Student extends Base {
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id' })
   tenantId: string;
 
   @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
   @Column({ name: 'user_id', unique: true })
@@ -63,43 +63,33 @@ export class Student extends Base {
   user: User;
 
   // ── Academic profile ──────────────────────────────────────────────────────
-  @Column({ name: 'exam_target', type: 'varchar', length: 120, nullable: true })
-  examTarget: string | ExamTarget;
+  examTarget: string | ExamTarget = 'jee';
 
-  @Column({ name: 'class', type: 'enum', enum: StudentClass, nullable: true })
-  class: StudentClass;
+  class: StudentClass = StudentClass.CLASS_12;
 
-  @Column({ name: 'exam_year', type: 'enum', enum: ExamYear, nullable: true })
-  examYear: ExamYear;
+  examYear: ExamYear = ExamYear.Y2026;
 
-  @Column({ name: 'target_college', nullable: true })
-  targetCollege: string; // e.g. "IIT Bombay CS"
+  targetCollege: string = ''; // e.g. "IIT Bombay CS"
 
-  @Column({ name: 'daily_study_hours', type: 'float', default: 4 })
-  dailyStudyHours: number;
+  dailyStudyHours: number = 4;
 
-  @Column({ name: 'language', type: 'enum', enum: Language, default: Language.ENGLISH })
-  language: Language;
+  language: Language = Language.ENGLISH;
 
   // ── Personal details ─────────────────────────────────────────────────────
-  @Column({ name: 'care_of', nullable: true })
-  careOf: string; // Care of / Son of
+  careOf: string = ''; // Care of / Son of
 
-  @Column({ name: 'alternate_phone_number', nullable: true })
-  alternatePhoneNumber: string;
+  alternatePhoneNumber: string = '';
 
   // ── Location ─────────────────────────────────────────────────────────────
   @Column({ nullable: true })
   address: string;
 
-  @Column({ name: 'post_office', nullable: true })
-  postOffice: string;
+  postOffice: string = '';
 
   @Column({ nullable: true })
   city: string;
 
-  @Column({ nullable: true })
-  landmark: string; // Landmark / Tehsil
+  landmark: string = ''; // Landmark / Tehsil
 
   @Column({ nullable: true })
   state: string;
@@ -107,52 +97,37 @@ export class Student extends Base {
   @Column({ name: 'pin_code', nullable: true })
   pinCode: string;
 
-  @Column({ name: 'coaching_name', nullable: true })
-  coachingName: string;
+  coachingName: string = '';
 
   // ── Gamification ──────────────────────────────────────────────────────────
-  @Column({ name: 'xp_total', default: 0 })
-  xpTotal: number;
+  xpTotal: number = 0;
 
-  @Column({ name: 'leaderboard_xp_total', default: 0 })
-  leaderboardXpTotal: number;
+  leaderboardXpTotal: number = 0;
 
-  @Column({ name: 'leaderboard_xp_cycle', default: 0 })
-  leaderboardXpCycle: number;
+  leaderboardXpCycle: number = 0;
 
-  @Column({ name: 'mock_xp_total', default: 0 })
-  mockXpTotal: number;
+  mockXpTotal: number = 0;
 
-  @Column({ name: 'current_level', default: 1 })
-  currentLevel: number;
+  currentLevel: number = 1;
 
-  @Column({ name: 'current_streak', default: 0 })
-  currentStreak: number;
+  currentStreak: number = 0;
 
-  @Column({ name: 'longest_streak', default: 0 })
-  longestStreak: number;
+  longestStreak: number = 0;
 
-  @Column({ name: 'last_active_date', type: 'date', nullable: true })
-  lastActiveDate: string;
+  lastActiveDate: string = '';
 
   // ── Subscription ──────────────────────────────────────────────────────────
-  @Column({ name: 'subscription_plan', type: 'enum', enum: SubscriptionPlan, default: SubscriptionPlan.FREE })
-  subscriptionPlan: SubscriptionPlan;
+  subscriptionPlan: SubscriptionPlan = SubscriptionPlan.FREE;
 
-  @Column({ name: 'subscription_expires_at', type: 'timestamptz', nullable: true })
-  subscriptionExpiresAt: Date;
+  subscriptionExpiresAt: Date = new Date();
 
   // ── Onboarding ────────────────────────────────────────────────────────────
-  @Column({ name: 'onboarding_complete', default: false })
-  onboardingComplete: boolean;
+  onboardingComplete: boolean = false;
 
-  @Column({ name: 'diagnostic_completed', default: false })
-  diagnosticCompleted: boolean;
+  diagnosticCompleted: boolean = false;
 
-  @Column({ name: 'baseline_rank_estimate', nullable: true })
-  baselineRankEstimate: number;
+  baselineRankEstimate: number = 0;
 
   // ── Parent ────────────────────────────────────────────────────────────────
-  @Column({ name: 'parent_user_id', nullable: true })
-  parentUserId: string;
+  parentUserId: string = '';
 }

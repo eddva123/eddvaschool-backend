@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AiBridgeService } from './ai-bridge.service';
 import { AiBridgeController } from './ai-bridge.controller';
+import { AIModule } from '../../ai/ai.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AiBridgeController } from './ai-bridge.controller';
         maxRedirects: 3,
       }),
     }),
+    AIModule,
   ],
   controllers: [AiBridgeController],
   providers: [AiBridgeService],

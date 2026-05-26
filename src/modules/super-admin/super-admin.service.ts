@@ -102,7 +102,7 @@ export class SuperAdminService {
           role: UserRole.INSTITUTE_ADMIN,
           status: UserStatus.ACTIVE,
           isFirstLogin: true,
-          email: dto.billingEmail ?? null,
+          email: dto.billingEmail || `${dto.adminPhone.replace(/[^0-9]/g, '') || Date.now()}@eddva.local`,
         }),
       );
 
@@ -142,9 +142,9 @@ export class SuperAdminService {
           this.studentRepo.count({ where: { tenantId: tenant.id } }),
           this.userRepo.count({ where: { tenantId: tenant.id, role: UserRole.TEACHER } }),
           this.userRepo
-            .createQueryBuilder('user')
-            .select('MAX(user.lastLoginAt)', 'lastActivity')
-            .where('user.tenantId = :tenantId', { tenantId: tenant.id })
+            .createQueryBuilder('u')
+            .select('MAX(u.lastLoginAt)', 'lastActivity')
+            .where('u.tenantId = :tenantId', { tenantId: tenant.id })
             .getRawOne(),
         ]);
 
@@ -206,19 +206,19 @@ export class SuperAdminService {
     const skip = (page - 1) * limit;
 
     const qb = this.userRepo
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.tenant', 'tenant')
-      .where('user.deletedAt IS NULL');
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.tenant', 'tenant')
+      .where('u.deletedAt IS NULL');
 
-    if (query.tenantId) qb.andWhere('user.tenantId = :tenantId', { tenantId: query.tenantId });
-    if (query.role) qb.andWhere('user.role = :role', { role: query.role });
+    if (query.tenantId) qb.andWhere('u.tenantId = :tenantId', { tenantId: query.tenantId });
+    if (query.role) qb.andWhere('u.role = :role', { role: query.role });
     if (query.search) {
-      qb.andWhere('(user.fullName ILIKE :search OR user.phoneNumber ILIKE :search)', {
+      qb.andWhere('(u.fullName ILIKE :search OR u.phoneNumber ILIKE :search)', {
         search: `%${query.search}%`,
       });
     }
 
-    qb.orderBy('user.createdAt', 'DESC').skip(skip).take(limit);
+    qb.orderBy('u.createdAt', 'DESC').skip(skip).take(limit);
     const [users, total] = await qb.getManyAndCount();
 
     return {
@@ -263,7 +263,7 @@ export class SuperAdminService {
     const instituteActivityRaw = await this.tenantRepo.query(`
       SELECT t.name, COUNT(u.id)::int as "userCount"
       FROM tenants t
-      LEFT JOIN users u ON u.tenant_id = t.id
+      LEFT JOIN users u ON u.institute_id = t.id
       GROUP BY t.id, t.name
       ORDER BY "userCount" DESC
       LIMIT 5
@@ -399,9 +399,9 @@ export class SuperAdminService {
 
     if (query.search) {
       filters.push(`(
-        LOWER(u.full_name) LIKE LOWER($${idx}) OR
+        LOWER(u.name) LIKE LOWER($${idx}) OR
         LOWER(u.email) LIKE LOWER($${idx}) OR
-        u.phone_number LIKE $${idx}
+        u.phone LIKE $${idx}
       )`);
       params.push(`%${query.search}%`);
       idx++;
@@ -418,9 +418,9 @@ export class SuperAdminService {
         e.fee_paid_at,
 
         s.id              AS student_id,
-        u.full_name       AS student_name,
+        u.name            AS student_name,
         u.email           AS student_email,
-        u.phone_number    AS student_phone,
+        u.phone           AS student_phone,
         s.care_of         AS care_of,
         s.city            AS city,
         s.state           AS state,

@@ -22,11 +22,11 @@ export class Complaint extends Base {
   status: ComplaintStatus;
 
   @Index()
-  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  @Column({ name: 'institute_id', type: 'uuid', nullable: true })
   tenantId?: string;
 
   @ManyToOne(() => Tenant, { nullable: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant?: Tenant;
 
   @Index()

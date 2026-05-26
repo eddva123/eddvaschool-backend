@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
 import { Topic } from './subject.entity';
@@ -27,7 +27,7 @@ export enum ExplanationMode {
 }
 
 @Entity('doubts')
-export class Doubt extends Base {
+export class Doubt extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -136,7 +136,7 @@ export enum TranscriptStatus {
 }
 
 @Entity('lectures')
-export class Lecture extends Base {
+export class Lecture extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -235,7 +235,7 @@ export class Lecture extends Base {
 }
 
 @Entity('lecture_progress')
-export class LectureProgress extends Base {
+export class LectureProgress extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -280,7 +280,7 @@ export class LectureProgress extends Base {
 
 // ─── Study Plan ───────────────────────────────────────────────────────────────
 @Entity('study_plans')
-export class StudyPlan extends Base {
+export class StudyPlan extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
@@ -321,7 +321,7 @@ export enum PlanItemStatus {
 }
 
 @Entity('plan_items')
-export class PlanItem extends Base {
+export class PlanItem extends BaseWithDelete {
   @Column({ name: 'study_plan_id' })
   studyPlanId: string;
 
@@ -357,7 +357,7 @@ export class PlanItem extends Base {
 // ─── AI Study Session ─────────────────────────────────────────────────────────
 
 @Entity('ai_study_sessions')
-export class AiStudySession extends Base {
+export class AiStudySession extends BaseWithDelete {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 

@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "name": "apexiq-backend",
   "version": "1.0.0",
   "description": "APEXIQ — JEE/NEET Battle Learning Platform (NestJS Monolith)",
@@ -9,8 +8,8 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
-    "start": "npx kill-port 3000 && node -r ts-node/register/transpile-only src/main.ts",
-    "start:dev": "npx kill-port 3000 && node --watch -r ts-node/register/transpile-only src/main.ts",
+    "start": "npx kill-port 5000 && node -r ts-node/register/transpile-only src/main.ts",
+    "start:dev": "npx kill-port 5000 && node --watch -r ts-node/register/transpile-only src/main.ts",
     "start:debug": "node --inspect -r ts-node/register/transpile-only src/main.ts",
     "start:prod": "node dist/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -113,39 +112,5 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-=======
-  "name": "school-platform-backend",
-  "version": "1.0.0",
-  "description": "Unified backend for School Platform (PostgreSQL + pg, no Prisma)",
-  "main": "src/server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "db:init": "node src/database/runSchema.js",
-    "db:seed": "node src/database/seeds/index.js"
-  },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cookie-parser": "^1.4.6",
-    "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^4.19.2",
-    "express-rate-limit": "^7.2.0",
-    "express-validator": "^7.0.1",
-    "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.13",
-    "pg": "^8.11.5",
-    "socket.io": "^4.7.5",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",
-    "uuid": "^9.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
->>>>>>> 82056731b51d01bf13dd9bddb79cac76edb33741
   }
 }
