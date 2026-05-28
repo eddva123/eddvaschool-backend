@@ -16,6 +16,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserRole } from '../../database/entities/user.entity';
+import { CurrentUser, TenantId } from '../../common/decorators/auth.decorator';
 
 import { SuperAdminService } from './super-admin.service';
 import {
@@ -76,8 +77,16 @@ export class SuperAdminController {
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'Search users across all tenants' })
-  getUsers(@Query() query: AdminUserListQueryDto) {
+  @Roles(UserRole.SUPER_ADMIN, UserRole.INSTITUTE_ADMIN)
+  @ApiOperation({ summary: 'Search users' })
+  getUsers(
+    @Query() query: AdminUserListQueryDto,
+    @CurrentUser('role') role: string,
+    @TenantId() tenantId: string,
+  ) {
+    if (role === UserRole.INSTITUTE_ADMIN) {
+      query.tenantId = tenantId;
+    }
     return this.superAdminService.getUsers(query);
   }
 

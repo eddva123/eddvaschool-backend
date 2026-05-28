@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
 import { Topic } from './subject.entity';
@@ -27,13 +27,9 @@ export enum ExplanationMode {
 }
 
 @Entity('doubts')
-export class Doubt extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+export class Doubt extends BaseWithDelete {
+  @Column({ name: 'tenant_id' })
+  tenantId: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -76,7 +72,7 @@ export class Doubt extends Base {
   explanationMode: ExplanationMode;
 
   // ── Resolution ────────────────────────────────────────────────────────────
-  @Column({ nullable: true,  type: 'enum', enum: DoubtStatus, default: DoubtStatus.OPEN })
+  @Column({ nullable: true, type: 'enum', enum: DoubtStatus, default: DoubtStatus.OPEN })
   status: DoubtStatus;
 
   @Column({ name: 'ai_explanation', type: 'text', nullable: true })
@@ -140,13 +136,9 @@ export enum TranscriptStatus {
 }
 
 @Entity('lectures')
-export class Lecture extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+export class Lecture extends BaseWithDelete {
+  @Column({ name: 'tenant_id' })
+  tenantId: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -182,7 +174,7 @@ export class Lecture extends Base {
   @Column({ type: 'enum', enum: LectureType })
   type: LectureType;
 
-  @Column({ nullable: true,  type: 'enum', enum: LectureStatus, default: LectureStatus.PROCESSING })
+  @Column({ nullable: true, type: 'enum', enum: LectureStatus, default: LectureStatus.PROCESSING })
   status: LectureStatus;
 
   // ── Media ─────────────────────────────────────────────────────────────────
@@ -243,13 +235,9 @@ export class Lecture extends Base {
 }
 
 @Entity('lecture_progress')
-export class LectureProgress extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+export class LectureProgress extends BaseWithDelete {
+  @Column({ name: 'tenant_id' })
+  tenantId: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -292,13 +280,9 @@ export class LectureProgress extends Base {
 
 // ─── Study Plan ───────────────────────────────────────────────────────────────
 @Entity('study_plans')
-export class StudyPlan extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+export class StudyPlan extends BaseWithDelete {
+  @Column({ name: 'tenant_id' })
+  tenantId: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -337,7 +321,7 @@ export enum PlanItemStatus {
 }
 
 @Entity('plan_items')
-export class PlanItem extends Base {
+export class PlanItem extends BaseWithDelete {
   @Column({ name: 'study_plan_id' })
   studyPlanId: string;
 
@@ -363,7 +347,7 @@ export class PlanItem extends Base {
   @Column({ name: 'sort_order', default: 0 })
   sortOrder: number;
 
-  @Column({ nullable: true,  type: 'enum', enum: PlanItemStatus, default: PlanItemStatus.PENDING })
+  @Column({ nullable: true, type: 'enum', enum: PlanItemStatus, default: PlanItemStatus.PENDING })
   status: PlanItemStatus;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
@@ -373,13 +357,9 @@ export class PlanItem extends Base {
 // ─── AI Study Session ─────────────────────────────────────────────────────────
 
 @Entity('ai_study_sessions')
-export class AiStudySession extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+export class AiStudySession extends BaseWithDelete {
+  @Column({ name: 'tenant_id' })
+  tenantId: string;
 
   @Column({ name: 'student_id' })
   studentId: string;

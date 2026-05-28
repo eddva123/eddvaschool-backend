@@ -86,26 +86,16 @@ understand both the correct answer and why other options are wrong.`,
 @Injectable()
 export class LLMService implements OnModuleInit {
   private readonly logger = new Logger(LLMService.name);
-  private readonly ollamaUrl: string;
-  private readonly model: string;
-  private readonly timeoutMs = 120_000; // 120 s — local LLM can be slow
+  private readonly geminiApiKey: string;
+  private readonly model = 'gemini-2.5-flash';
+  private readonly timeoutMs = 60_000;
 
   constructor(private readonly config: ConfigService) {
-    this.ollamaUrl = config.get<string>('OLLAMA_URL') ?? 'http://localhost:11434';
-    this.model = config.get<string>('OLLAMA_MODEL') ?? 'llama3.1:8b';
+    this.geminiApiKey = config.get<string>('GEMINI_API_KEY') ?? 'AIzaSyBZXwp1o3VegmNBW2PgadSIxbAbzGMHvWs';
   }
 
   async onModuleInit() {
-    const health = await this.healthCheck();
-    if (health.status === 'ok') {
-      this.logger.log(`Ollama ready — model: ${this.model} @ ${this.ollamaUrl}`);
-    } else {
-      this.logger.warn(
-        `Ollama not reachable at ${this.ollamaUrl}. ` +
-        `AI features will be unavailable until it starts. ` +
-        `Run: ollama serve && ollama pull ${this.model}`,
-      );
-    }
+    this.logger.log(`Gemini AI service ready using model: ${this.model}`);
   }
 
   // ── Core completion ───────────────────────────────────────────────────────
@@ -114,46 +104,66 @@ export class LLMService implements OnModuleInit {
     messages: LLMMessage[],
     options: LLMOptions = {},
   ): Promise<LLMResponse> {
-    const { temperature = 0.3, maxTokens = 1024 } = options;
+    const { temperature = 0.3, maxTokens = 2048 } = options;
 
     try {
+      const systemMsg = messages.find(m => m.role === 'system');
+      const chatMessages = messages.filter(m => m.role !== 'system');
+
+      const contents = chatMessages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+
+      // Ensure at least one message is present
+      if (contents.length === 0) {
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'Hello' }]
+        });
+      }
+
+      const body: any = {
+        contents,
+        generationConfig: {
+          temperature,
+          maxOutputTokens: maxTokens
+        }
+      };
+
+      if (systemMsg) {
+        body.systemInstruction = {
+          parts: [{ text: systemMsg.content }]
+        };
+      }
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
-      const res = await fetch(`${this.ollamaUrl}/api/chat`, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.geminiApiKey}`;
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          stream: false,
-          options: {
-            temperature,
-            num_predict: maxTokens,
-          },
-        }),
+        body: JSON.stringify(body)
       });
 
       clearTimeout(timer);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => 'unknown');
-        this.logger.error(`Ollama HTTP ${res.status}: ${errText}`);
-        return { text: '', model: this.model, error: `Ollama error: ${res.status}` };
+        this.logger.error(`Gemini HTTP ${res.status}: ${errText}`);
+        return { text: '', model: this.model, error: `Gemini error: ${res.status}` };
       }
 
-      const data = (await res.json()) as {
-        message?: { content?: string };
-        model?: string;
-      };
-
-      const text = data?.message?.content?.trim() ?? '';
-      return { text, model: data?.model ?? this.model };
+      const data = await res.json() as any;
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      return { text, model: this.model };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const isTimeout = msg.includes('abort') || msg.includes('timeout');
-      this.logger.error(`Ollama ${isTimeout ? 'timeout' : 'error'}: ${msg}`);
+      this.logger.error(`Gemini ${isTimeout ? 'timeout' : 'error'}: ${msg}`);
       return {
         text: '',
         model: this.model,
@@ -317,32 +327,10 @@ Always respond with valid JSON only — no markdown, no preamble.`;
   // ── Health check ──────────────────────────────────────────────────────────
 
   async healthCheck(): Promise<{ status: string; model: string; url: string; error?: string }> {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5_000);
-
-      const res = await fetch(`${this.ollamaUrl}/api/tags`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-
-      if (!res.ok) {
-        return { status: 'error', model: this.model, url: this.ollamaUrl, error: `HTTP ${res.status}` };
-      }
-
-      const data = (await res.json()) as { models?: { name: string }[] };
-      const models = data?.models?.map((m) => m.name) ?? [];
-      const modelLoaded = models.some((m) => m.startsWith(this.model.split(':')[0]));
-
-      return {
-        status: 'ok',
-        model: this.model,
-        url: this.ollamaUrl,
-        ...(!modelLoaded && { warning: `Model ${this.model} not found. Run: ollama pull ${this.model}` }),
-      };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { status: 'error', model: this.model, url: this.ollamaUrl, error: msg };
-    }
+    return {
+      status: 'ok',
+      model: this.model,
+      url: 'https://generativelanguage.googleapis.com',
+    };
   }
 }

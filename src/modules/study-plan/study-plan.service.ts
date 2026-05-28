@@ -240,11 +240,10 @@ export class StudyPlanService {
     const rows: { id: string }[] = await this.dataSource.query(
       `SELECT DISTINCT t.id::text AS id
        FROM topics t
-       JOIN chapters c  ON c.id = t.chapter_id  AND c.deleted_at IS NULL
-       JOIN subjects s  ON s.id = c.subject_id  AND s.deleted_at IS NULL
-       WHERE t.tenant_id = $1
+       JOIN chapters c  ON c.id = t.chapter_id
+       JOIN subjects s  ON s.id = c.subject_id
+       WHERE t.institute_id = $1
          AND t.is_active = true
-         AND t.deleted_at IS NULL
          AND s.is_active = true
          AND (
            s.batch_id = $2
@@ -252,30 +251,30 @@ export class StudyPlanService {
              SELECT s2.id FROM subjects s2
              JOIN batch_subject_teachers bst
                ON LOWER(TRIM(s2.name)) = LOWER(TRIM(bst.subject_name))
-             WHERE bst.batch_id = $2 AND s2.tenant_id = $1 AND s2.is_active = true
+             WHERE bst.batch_id = $2 AND s2.institute_id = $1 AND s2.is_active = true
            )
            OR s.id IN (
              SELECT DISTINCT s3.id FROM lectures l
-             JOIN topics  t3 ON t3.id = l.topic_id   AND t3.deleted_at IS NULL
-             JOIN chapters c3 ON c3.id = t3.chapter_id AND c3.deleted_at IS NULL
-             JOIN subjects s3 ON s3.id = c3.subject_id AND s3.deleted_at IS NULL
+             JOIN topics  t3 ON t3.id = l.topic_id
+             JOIN chapters c3 ON c3.id = t3.chapter_id
+             JOIN subjects s3 ON s3.id = c3.subject_id
              WHERE l.batch_id = $2 AND l.deleted_at IS NULL
-               AND s3.tenant_id = $1 AND s3.is_active = true
+               AND s3.institute_id = $1 AND s3.is_active = true
            )
            OR s.id IN (
              SELECT DISTINCT s4.id FROM topic_resources tr
-             JOIN topics  t4 ON t4.id = tr.topic_id   AND t4.deleted_at IS NULL
-             JOIN chapters c4 ON c4.id = t4.chapter_id AND c4.deleted_at IS NULL
-             JOIN subjects s4 ON s4.id = c4.subject_id AND s4.deleted_at IS NULL
+             JOIN topics  t4 ON t4.id = tr.topic_id
+             JOIN chapters c4 ON c4.id = t4.chapter_id
+             JOIN subjects s4 ON s4.id = c4.subject_id
              WHERE tr.deleted_at IS NULL
-               AND s4.tenant_id = $1 AND s4.is_active = true
+               AND s4.institute_id = $1 AND s4.is_active = true
                AND (
                  s4.batch_id = $2
                  OR s4.id IN (
                    SELECT s5.id FROM subjects s5
                    JOIN batch_subject_teachers bst2
                      ON LOWER(TRIM(s5.name)) = LOWER(TRIM(bst2.subject_name))
-                   WHERE bst2.batch_id = $2 AND s5.tenant_id = $1
+                   WHERE bst2.batch_id = $2 AND s5.institute_id = $1
                  )
                )
            )

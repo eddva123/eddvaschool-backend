@@ -71,7 +71,7 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly mailService: MailService,
     private readonly s3Service: S3Service,
-  ) {}
+  ) { }
 
   // ── Student Self-Registration ─────────────────────────────────────────────
 
@@ -196,7 +196,15 @@ export class AuthService {
     await this.cacheManager.del(key);
 
     // Find or create user
-    const whereClause = dto.email ? { email: ILike(dto.email), tenantId } : { phoneNumber: dto.phoneNumber, tenantId };
+    const whereClause = dto.email
+      ? [
+        { email: ILike(dto.email), tenantId },
+        { email: ILike(dto.email), tenantId: IsNull() },
+      ]
+      : [
+        { phoneNumber: dto.phoneNumber, tenantId },
+        { phoneNumber: dto.phoneNumber, tenantId: IsNull() },
+      ];
     let user = await this.userRepo.findOne({
       where: whereClause,
       relations: ['tenant'],
@@ -205,9 +213,9 @@ export class AuthService {
     // If not found in the current tenant, but they are trying to log in as an Admin/Teacher from the root domain
     if (!user && dto.role && ['INSTITUTE_ADMIN', 'ADMIN', 'SUPER_ADMIN', 'TEACHER'].includes(dto.role.toUpperCase())) {
       const globalWhere = dto.email ? { email: ILike(dto.email) } : { phoneNumber: dto.phoneNumber };
-      
+
       const normalizedQueryRole = dto.role.toUpperCase() === 'ADMIN' ? UserRole.INSTITUTE_ADMIN : dto.role.toUpperCase() as UserRole;
-      
+
       user = await this.userRepo.findOne({
         where: { ...globalWhere, role: normalizedQueryRole },
         relations: ['tenant'],
@@ -227,15 +235,16 @@ export class AuthService {
         else if (r === 'PARENT') normalizedRole = UserRole.PARENT;
       }
 
-      if (normalizedRole === UserRole.INSTITUTE_ADMIN || normalizedRole === UserRole.SUPER_ADMIN || normalizedRole === UserRole.TEACHER) {
-        console.error(`[DEBUG AUTH] Blocking new user creation for role ${normalizedRole}. Email ${dto.email} not found.`);
-        throw new BadRequestException('Account not found. Please use the exact email registered for your Admin/Teacher account, or contact support.');
+      if (normalizedRole === UserRole.SUPER_ADMIN) {
+        throw new BadRequestException('Account not found. Please use the exact email registered for your Super Admin account, or contact support.');
       }
 
       const defaultName = (normalizedRole as any) === UserRole.TEACHER ? 'Teacher' : (normalizedRole as any) === UserRole.INSTITUTE_ADMIN ? 'Admin' : 'Student';
       user = this.userRepo.create({
-        ...(dto.email ? { email: dto.email } : { phoneNumber: dto.phoneNumber }),
-        fullName: defaultName,
+        phoneNumber: dto.phoneNumber || null,
+        email: dto.email || `${dto.phoneNumber?.replace(/[^0-9]/g, '') || Date.now()}@eddva.local`,
+        password: this.generateTempPassword(),
+        fullName: normalizedRole === UserRole.TEACHER ? 'Teacher' : normalizedRole === UserRole.INSTITUTE_ADMIN ? 'Admin' : 'Student',
         tenantId,
         role: normalizedRole,
         status: UserStatus.ACTIVE,
@@ -866,22 +875,22 @@ export class AuthService {
       updatedAt: user.updatedAt,
       tenant: tenant
         ? {
-            id: tenant.id,
-            name: tenant.name,
-            subdomain: tenant.subdomain,
-            type: tenant.type,
-            status: tenant.status,
-            plan: tenant.plan,
-            logoUrl: tenant.logoUrl,
-            brandColor: tenant.brandColor,
-            welcomeMessage: tenant.welcomeMessage,
-            city: tenant.city,
-            state: tenant.state,
-            onboardingComplete: tenant.onboardingComplete,
-            maxStudents: tenant.maxStudents,
-            maxTeachers: tenant.maxTeachers,
-            metadata: (toJsonSafeDeep(tenant.metadata ?? {}) ?? {}) as Record<string, unknown>,
-          }
+          id: tenant.id,
+          name: tenant.name,
+          subdomain: tenant.subdomain,
+          type: tenant.type,
+          status: tenant.status,
+          plan: tenant.plan,
+          logoUrl: tenant.logoUrl,
+          brandColor: tenant.brandColor,
+          welcomeMessage: tenant.welcomeMessage,
+          city: tenant.city,
+          state: tenant.state,
+          onboardingComplete: tenant.onboardingComplete,
+          maxStudents: tenant.maxStudents,
+          maxTeachers: tenant.maxTeachers,
+          metadata: (toJsonSafeDeep(tenant.metadata ?? {}) ?? {}) as Record<string, unknown>,
+        }
         : undefined,
     };
   }

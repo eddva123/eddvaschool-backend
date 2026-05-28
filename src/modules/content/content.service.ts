@@ -470,7 +470,13 @@ export class ContentService {
         return this.chapterRepo.save(chapter);
     }
 
-    async getChapters(subjectId: string, tenantId: string): Promise<Chapter[]> {
+    async getChapters(subjectId: string | undefined, tenantId: string): Promise<Chapter[]> {
+        if (!subjectId) {
+            return this.chapterRepo.find({
+                where: { tenantId, isActive: true },
+                order: { sortOrder: 'ASC', createdAt: 'ASC' },
+            });
+        }
         const subject = await this.subjectRepo.findOne({ where: { id: subjectId, tenantId } });
         if (!subject) throw new NotFoundException(`Subject ${subjectId} not found`);
 

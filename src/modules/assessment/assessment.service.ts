@@ -238,7 +238,15 @@ export class AssessmentService {
 
     if (query.isPublished !== undefined && schema.isPublished) {
       filters.push(`mt.is_published = $${index++}`);
-      params.push(query.isPublished);
+      params.push(query.isPublished === true || String(query.isPublished) === 'true');
+    }
+
+    if (query.status && schema.isPublished) {
+      if (query.status === 'published') {
+        filters.push('mt.is_published = true');
+      } else if (query.status === 'draft') {
+        filters.push('mt.is_published = false');
+      }
     }
     
     if (query.examMode) {

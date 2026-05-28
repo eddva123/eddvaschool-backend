@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
 
@@ -12,15 +12,11 @@ export enum FeeStatus {
 
 @Entity('fees')
 export class Fee extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+  @Column({ name: 'institute_id' })
+  tenantId: string;
 
   @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
   @Column({ name: 'student_id' })
@@ -39,21 +35,17 @@ export class Fee extends Base {
   @Column({ name: 'amount_paid', type: 'float', default: 0 })
   amountPaid: number;
 
-  @Column({ nullable: true,  name: 'due_date', type: 'timestamptz' })
+  @Column({ nullable: true, name: 'due_date', type: 'timestamptz' })
   dueDate: Date;
 
-  @Column({ nullable: true,  type: 'enum', enum: FeeStatus, default: FeeStatus.PENDING })
+  @Column({ nullable: true, type: 'enum', enum: FeeStatus, default: FeeStatus.PENDING })
   status: FeeStatus;
 }
 
 @Entity('transactions')
-export class Transaction extends Base {
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-    nullable: true,
-  })
-  tenantId?: string;
+export class Transaction extends BaseWithDelete {
+  @Column({ name: 'tenant_id' })
+  tenantId: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })

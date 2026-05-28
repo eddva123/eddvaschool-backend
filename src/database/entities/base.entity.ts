@@ -15,7 +15,9 @@ export abstract class Base extends BaseEntity {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+}
 
+export abstract class BaseWithDelete extends Base {
   @DeleteDateColumn({ name: 'deleted_at', nullable: true })
   deletedAt: Date;
 }

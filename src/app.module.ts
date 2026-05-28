@@ -47,9 +47,6 @@ import {
 import { Assignment } from './assignments/entities/assignment.entity';
 import { Fee, Transaction } from './database/entities/finance.entity';
 import { Complaint } from './database/entities/complaint.entity';
-import { AttendanceSession, AttendanceRecord } from './database/entities/attendance.entity';
-import { AssignmentSubmission, AssignmentGrade } from './database/entities/assignment-submission.entity';
-import { TeacherAssessment, TeacherAssessmentSection, TeacherAssessmentResult } from './database/entities/teacher-assessment.entity';
 
 
 // ── Modules ───────────────────────────────────────────────────────────────────
@@ -108,10 +105,6 @@ const ALL_ENTITIES = [
   Fee,
   Transaction,
   Complaint,
-  TeacherDataStore,
-  AttendanceSession, AttendanceRecord,
-  AssignmentSubmission, AssignmentGrade,
-  TeacherAssessment, TeacherAssessmentSection, TeacherAssessmentResult,
 ];
 
 @Module({

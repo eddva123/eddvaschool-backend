@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, Repository, IsNull } from 'typeorm';
 
@@ -87,7 +87,7 @@ export class CompatService {
     private readonly teacherCreatorStudioService: TeacherCreatorStudioService,
     private readonly teacherLiveClassesService: TeacherLiveClassesService,
     private readonly teacherAssessmentsService: TeacherAssessmentsService,
-  ) {}
+  ) { }
 
   private async getData<T>(tenantId: string, category: string, defaultData: T): Promise<T> {
     const store = await this.teacherDataStoreService.getData(tenantId, category, (defaultData as any) || []);
@@ -194,15 +194,10 @@ export class CompatService {
     return { institute: await this.toInstituteView(saved) };
   }
 
-  async getPlatformStats(tenantId?: string, currentUser?: any) {
-    if (currentUser?.role === UserRole.TEACHER) {
-      // ── Delegate to TeacherDashboardService (single source of truth) ──────
-      return this.teacherDashboardService.getTeacherDashboard(tenantId, currentUser);
-    }
-
-    const userWhere = tenantId ? { tenantId, deletedAt: IsNull() } : { deletedAt: IsNull() };
+  async getPlatformStats(tenantId?: string) {
+    const userWhere = tenantId ? { tenantId } : {};
     const enrollmentWhere = tenantId ? { tenantId, deletedAt: IsNull() } : { deletedAt: IsNull() };
-    const studentQuery = tenantId ? 'SELECT COUNT(s.id)::int AS count FROM students s JOIN users u ON u.id = s.user_id WHERE u.tenant_id = $1 AND s.deleted_at IS NULL' : 'SELECT COUNT(*)::int AS count FROM students WHERE deleted_at IS NULL';
+    const studentQuery = tenantId ? 'SELECT COUNT(s.id)::int AS count FROM students s JOIN users u ON u.id = s.user_id WHERE u.institute_id = $1' : 'SELECT COUNT(*)::int AS count FROM students';
     const studentParams = tenantId ? [tenantId] : [];
 
     const [tenants, users, students, enrollments] = await Promise.all([
@@ -465,13 +460,13 @@ export class CompatService {
     let profile = await this.teacherProfileRepo.findOne({
       where: tenantId
         ? [
-            { id, tenantId },
-            { userId: id, tenantId },
-          ]
+          { id, tenantId },
+          { userId: id, tenantId },
+        ]
         : [
-            { id },
-            { userId: id },
-          ],
+          { id },
+          { userId: id },
+        ],
       relations: ['user', 'user.tenant'],
     });
 
@@ -535,13 +530,13 @@ export class CompatService {
     let profile = await this.teacherProfileRepo.findOne({
       where: tenantId
         ? [
-            { id, tenantId },
-            { userId: id, tenantId },
-          ]
+          { id, tenantId },
+          { userId: id, tenantId },
+        ]
         : [
-            { id },
-            { userId: id },
-          ],
+          { id },
+          { userId: id },
+        ],
       relations: ['user', 'user.tenant'],
     });
 
@@ -692,19 +687,27 @@ export class CompatService {
   }
 
   async getChatMessages(peerId: string, currentUser: any) {
+    const currentUserId = currentUser?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const conversation = this.chatMessages.filter(
       (message) =>
-        (message.sender_id === currentUser.id && message.receiver_id === peerId) ||
-        (message.sender_id === peerId && message.receiver_id === currentUser.id),
+        (message.sender_id === currentUserId && message.receiver_id === peerId) ||
+        (message.sender_id === peerId && message.receiver_id === currentUserId),
     );
 
     return conversation.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async sendChatMessage(payload: Record<string, any>, currentUser: any) {
+    const currentUserId = currentUser?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const message = {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      sender_id: currentUser.id,
+      sender_id: currentUserId,
       receiver_id: String(payload.receiverId || payload.receiver_id || ''),
       content: String(payload.content || ''),
       createdAt: new Date().toISOString(),
@@ -716,9 +719,13 @@ export class CompatService {
   }
 
   async markChatAsRead(peerId: string, currentUser: any) {
+    const currentUserId = currentUser?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const now = new Date().toISOString();
     this.chatMessages.forEach((message) => {
-      if (message.sender_id === peerId && message.receiver_id === currentUser.id) {
+      if (message.sender_id === peerId && message.receiver_id === currentUserId) {
         message.readAt = now;
       }
     });
@@ -742,7 +749,7 @@ export class CompatService {
 
     const tenantId = currentUser?.tenantId;
     const items = await this.complaintRepo.find({ where: tenantId ? { tenantId } : {}, relations: ['tenant', 'user'], order: { createdAt: 'DESC' } });
-    
+
     return items.map(c => ({
       id: c.id,
       title: c.title,
@@ -921,7 +928,7 @@ export class CompatService {
       subjectIds: Array.isArray(payload.subjectIds) ? payload.subjectIds : [],
       subjectNames: Array.isArray(payload.subjectNames) ? payload.subjectNames : [],
     };
-    
+
     if (payload.section) {
       const sectionNames = payload.section.split(',').map((s: string) => s.trim()).filter(Boolean);
       sectionNames.forEach((sName: string) => {
@@ -942,7 +949,7 @@ export class CompatService {
   async updateAcademicClass(id: string, payload: Record<string, any>) {
     const classIdx = this.academicClasses.findIndex(c => c.id === id);
     if (classIdx === -1) throw new NotFoundException(`Class ${id} not found`);
-    
+
     this.academicClasses[classIdx] = {
       ...this.academicClasses[classIdx],
       name: payload.name ?? this.academicClasses[classIdx].name,
@@ -964,7 +971,7 @@ export class CompatService {
   async createAcademicSection(classId: string, payload: Record<string, any>) {
     const classObj = this.academicClasses.find(c => c.id === classId);
     if (!classObj) throw new NotFoundException(`Class ${classId} not found`);
-    
+
     const newSection = {
       id: `sec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name: payload.name,
@@ -1111,7 +1118,7 @@ export class CompatService {
       raised_by_name: user?.fullName ? user.fullName : 'Anonymous',
       created_at: new Date().toISOString()
     };
-    
+
     const store = await this.teacherDataStoreService.getData<GrievanceItem>(tenantId, 'grievances', []);
     store.items.push(newGrievance);
     await this.teacherDataStoreService.saveData(tenantId, 'grievances', store.items, user?.id);
@@ -1122,21 +1129,21 @@ export class CompatService {
   private async getRoleUsers(role: string, search = '', tenantId?: string) {
     const normalizedRole = this.normalizeUserRole(role);
     const qb = this.userRepo
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.tenant', 'tenant')
-      .where('user.deletedAt IS NULL');
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.tenant', 'tenant')
+      .where('u.deletedAt IS NULL');
 
     if (normalizedRole) {
-      qb.andWhere('user.role = :role', { role: normalizedRole });
+      qb.andWhere('u.role = :role', { role: normalizedRole });
     }
     if (tenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+      qb.andWhere('u.tenantId = :tenantId', { tenantId });
     }
     if (search) {
-      qb.andWhere('(user.fullName ILIKE :search OR user.email ILIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(u.fullName ILIKE :search OR u.email ILIKE :search)', { search: `%${search}%` });
     }
 
-    const users = await qb.orderBy('user.fullName', 'ASC').take(50).getMany();
+    const users = await qb.orderBy('u.fullName', 'ASC').take(50).getMany();
     return users;
   }
 
@@ -1239,7 +1246,7 @@ export class CompatService {
     }
 
     if (query.search) {
-      filters.push(`(LOWER(u.full_name) LIKE LOWER($${index}) OR LOWER(u.email) LIKE LOWER($${index}) OR u.phone_number LIKE $${index})`);
+      filters.push(`(LOWER(u.name) LIKE LOWER($${index}) OR LOWER(u.email) LIKE LOWER($${index}) OR u.phone LIKE $${index})`);
       params.push(`%${String(query.search)}%`);
       index += 1;
     }
@@ -1255,9 +1262,9 @@ export class CompatService {
         e.fee_paid_at,
 
         s.id              AS student_id,
-        u.full_name       AS student_name,
+        u.name            AS student_name,
         u.email           AS student_email,
-        u.phone_number    AS student_phone,
+        u.phone           AS student_phone,
         s.care_of         AS care_of,
         s.city            AS city,
         s.state           AS state,
@@ -1300,9 +1307,9 @@ export class CompatService {
         e.fee_paid_at,
 
         s.id              AS student_id,
-        u.full_name       AS student_name,
+        u.name            AS student_name,
         u.email           AS student_email,
-        u.phone_number    AS student_phone,
+        u.phone           AS student_phone,
         s.care_of         AS care_of,
         s.city            AS city,
         s.state           AS state,

@@ -457,7 +457,7 @@ export class StudentService {
     const teacherMap = new Map<string, { id: string; name: string } | null>();
     for (const a of assignments) {
       const teacher = await this.dataSource.query(
-        `SELECT u.id, u.full_name AS name FROM users u WHERE u.id = $1 LIMIT 1`,
+        `SELECT u.id, u.name AS name FROM users u WHERE u.id = $1 LIMIT 1`,
         [a.teacherId],
       );
       teacherMap.set(a.subjectName.toLowerCase(), teacher[0] ?? null);
@@ -1022,7 +1022,7 @@ export class StudentService {
     const teacherMap = new Map<string, { id: string; name: string } | null>();
     for (const a of assignments) {
       const rows = await this.dataSource.query(
-        `SELECT u.id, u.full_name AS name FROM users u WHERE u.id = $1 LIMIT 1`,
+        `SELECT u.id, u.name AS name FROM users u WHERE u.id = $1 LIMIT 1`,
         [a.teacherId],
       );
       teacherMap.set(a.subjectName.toLowerCase(), rows[0] ?? null);

@@ -25,8 +25,8 @@ export const dbConfig: DataSourceOptions = {
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   extra: {
     family: 4, // Force IPv4 — Supabase host resolves to IPv6 only by default
-    // Allow up to 30 connections per process; override with DB_POOL_MAX env var
-    max: parseInt(process.env.DB_POOL_MAX || '30'),
+    // Allow up to 3 connections per process to stay below Supabase's pool_size: 15 limit; override with DB_POOL_MAX env var
+    max: parseInt(process.env.DB_POOL_MAX || '3'),
     // Idle connections released after 5 minutes to keep the pool warm and avoid TLS handshake latency
     idleTimeoutMillis: 300_000,
   },

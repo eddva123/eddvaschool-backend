@@ -512,15 +512,15 @@ export class BattleService {
       `
       SELECT
         s.id AS "studentId",
-        u.full_name AS "name",
+        u.name AS "name",
         COALESCE(se.battle_xp, 0)::int AS "score",
         COALESCE(se.tier::text, 'iron') AS "eloTier",
-        u.profile_picture_url AS "avatarUrl"
+        u.photo AS "avatarUrl"
       FROM students s
       JOIN users u ON u.id = s.user_id
       LEFT JOIN student_elo se ON se.student_id = s.id
-      WHERE s.tenant_id = $1
-      ORDER BY COALESCE(se.battle_xp, 0) DESC, u.full_name ASC
+      WHERE s.institute_id = $1
+      ORDER BY COALESCE(se.battle_xp, 0) DESC, u.name ASC
       `,
       [tenantId],
     );
@@ -959,8 +959,8 @@ export class BattleService {
       .leftJoin(StudentElo, 'elo', 'elo.student_id = s.id')
       .select([
         's.id AS "studentId"',
-        'u.full_name AS "name"',
-        'u.profile_picture_url AS "avatarUrl"',
+        'u.name AS "name"',
+        'u.photo AS "avatarUrl"',
         'COALESCE(s.xp_total, 0) AS "xpPoints"',
         'COALESCE(elo.elo_rating, 1000) AS "eloRating"',
         'COALESCE(elo.tier, :defaultTier) AS "tier"',

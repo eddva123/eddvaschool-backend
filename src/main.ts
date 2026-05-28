@@ -76,21 +76,25 @@ async function bootstrap() {
     .split(',').map((s) => s.trim()).filter(Boolean);
 
   app.enableCors({
-    origin: isDev
-      ? true
-      : (origin, callback) => {
-          // No origin = server-to-server / same-origin — always allow
-          if (!origin) return callback(null, true);
-          // Any subdomain of eddva.in (http or https)
-          if (/^https?:\/\/([\w-]+\.)?eddva\.in(:\d+)?$/.test(origin)) {
-            return callback(null, true);
-          }
-          // Explicit allow-list from CORS_ORIGINS env var
-          if (explicitOrigins.includes(origin)) return callback(null, true);
-          callback(new Error(`CORS: origin not allowed — ${origin}`), false);
-        },
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      
+      // Allow local dev origins (including subdomains) in development
+      if (isDev && /^https?:\/\/([\w-]+\.)?(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, origin);
+      }
+
+      // Allow production origins
+      if (/^https?:\/\/([\w-]+\.)?eddva\.in(:\d+)?$/.test(origin)) {
+        return callback(null, origin);
+      }
+
+      if (explicitOrigins.includes(origin)) return callback(null, origin);
+      callback(new Error(`CORS: origin not allowed — ${origin}`), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-subdomain', 'x-tenant-id', 'x-timezone'],
   });
 
   // ── Global prefix ─────────────────────────────────────────────────────────

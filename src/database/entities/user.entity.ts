@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, BeforeInsert, BeforeUpdate, Index } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import * as bcrypt from 'bcryptjs';
-import { Base } from './base.entity';
+import { Base, BaseWithDelete } from './base.entity';
 import { Tenant } from './tenant.entity';
 
 export enum UserRole {
@@ -21,7 +21,7 @@ export enum UserStatus {
 
 @Entity('users')
 @Index('UQ_user_phone_tenant_partial', ['phoneNumber', 'tenantId'], { unique: true })
-export class User extends Base {
+export class User extends BaseWithDelete {
   // ── Tenant (multi-tenancy) ───────────────────────────────────────────────
   @Column({ name: 'institute_id', nullable: true })
   tenantId: string;

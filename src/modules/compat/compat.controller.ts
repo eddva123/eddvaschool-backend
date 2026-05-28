@@ -1,14 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 
 import { CurrentUser, TenantId } from '../../common/decorators/auth.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CompatService } from './compat.service';
 
 @ApiTags('Compat')
 @ApiBearerAuth()
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class CompatController {
-  constructor(private readonly compatService: CompatService) {}
+  constructor(private readonly compatService: CompatService) { }
 
   @Get('institutes')
   getInstitutes(@Query() query: Record<string, any>) {
@@ -34,7 +35,9 @@ export class CompatController {
 
   @Get('dashboard/stats')
   getDashboardStats(@CurrentUser() user: any, @Query('tenantId') queryTenantId: string) {
-    return this.compatService.getPlatformStats(user?.tenantId || queryTenantId, user);
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const tenantId = isSuperAdmin ? (queryTenantId || undefined) : (user?.tenantId || queryTenantId);
+    return this.compatService.getPlatformStats(tenantId);
   }
 
   @Get('students')
@@ -394,9 +397,7 @@ export class CompatController {
   }
 
   @Post('attendance/mark')
-  @ApiTags('Teacher - Attendance')
-  @ApiOperation({ summary: 'Mark class attendance (legacy/compat)' })
-  markAttendance(@Body() body: Record<string, any>, @CurrentUser() user: any) {
+  markAttendanceMark(@Body() body: Record<string, any>, @CurrentUser() user: any) {
     return this.compatService.markAttendance(body, user);
   }
 
