@@ -1,4 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  CreateDateColumn,
+  Index,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+
+import { Base } from '../../database/entities/base.entity';
+import { Tenant } from '../../database/entities/tenant.entity';
 
 @Entity('assignments')
 @Index('IDX_assignments_tenant_teacher', ['tenantId', 'teacherId'])
