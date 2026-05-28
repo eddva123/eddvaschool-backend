@@ -93,11 +93,11 @@ export class Topic extends Base {
   @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
-  @Column({ name: 'subject_id' })
+  @Column({ name: 'chapter_id' })
   chapterId: string;
 
   @ManyToOne(() => Chapter, (c) => c.topics)
-  @JoinColumn({ name: 'subject_id' })
+  @JoinColumn({ name: 'chapter_id' })
   chapter: Chapter;
 
   @Column()
