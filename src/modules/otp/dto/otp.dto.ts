@@ -75,6 +75,10 @@ export class OtpRegisterDto {
   @IsOptional()
   @IsString()
   role?: "institute_admin" | "student";
+
+  @IsOptional()
+  @IsString()
+  tenantId?: string;
 }
 
 export class UpdatePendingContactDto {

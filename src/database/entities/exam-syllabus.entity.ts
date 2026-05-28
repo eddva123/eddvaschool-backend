@@ -4,8 +4,12 @@ import { Base } from './base.entity';
 @Entity('exam_syllabus_cache')
 @Index(['tenantId', 'examTarget', 'examYear'], { unique: true })
 export class ExamSyllabusCache extends Base {
-  @Column({ name: 'tenant_id', type: 'uuid' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'exam_target', type: 'text' })
   examTarget: string;

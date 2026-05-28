@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
 import { Base } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { Student } from './student.entity';
@@ -213,7 +213,15 @@ export enum NotificationStatus {
 }
 
 @Entity('notifications')
-export class Notification extends Base {
+export class Notification extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
   @Column({ name: 'user_id' })
   userId: string;
 

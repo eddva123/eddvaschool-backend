@@ -104,6 +104,7 @@ export class AuthService {
       const user = manager.create(User, {
         phoneNumber: normalizedPhone,
         fullName: dto.fullName,
+        name: dto.fullName,
         email: dto.email,
         password: dto.password, // @BeforeInsert hook hashes this
         tenantId,
@@ -160,8 +161,11 @@ export class AuthService {
 
     if (!devMode) {
       if (dto.email) {
-        this.mailService.sendOtpEmail(dto.email, otp).catch(err => this.logger.error(`Failed sending OTP email: ${err.message}`));
         this.logger.log(`OTP sent to email ${dto.email}`);
+        const mailResult = await this.mailService.sendOtpEmail(dto.email, otp);
+        if (!mailResult.sent && !mailResult.devMode) {
+          throw new BadRequestException('Failed to send OTP email. Please try again later.');
+        }
       } else {
         // TODO: integrate Twilio SMS here
         this.logger.log(`OTP sent to ${dto.phoneNumber}`);
@@ -181,24 +185,40 @@ export class AuthService {
     const key = `${this.OTP_PREFIX}${identifier}`;
     const storedOtp = await this.cacheManager.get<string>(key);
 
+    console.log('[DEBUG OTP] Verify Payload:', dto);
+    console.log(`[DEBUG OTP] Cache Key: ${key}`);
+    console.log(`[DEBUG OTP] Stored OTP: ${storedOtp}, Provided OTP: ${dto.otp}`);
+
     if (!storedOtp || storedOtp !== dto.otp) {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
-    // Consume OTP — delete it
     await this.cacheManager.del(key);
 
     // Find or create user
     const whereClause = dto.email ? { email: ILike(dto.email), tenantId } : { phoneNumber: dto.phoneNumber, tenantId };
     let user = await this.userRepo.findOne({
       where: whereClause,
+      relations: ['tenant'],
     });
+
+    // If not found in the current tenant, but they are trying to log in as an Admin/Teacher from the root domain
+    if (!user && dto.role && ['INSTITUTE_ADMIN', 'ADMIN', 'SUPER_ADMIN', 'TEACHER'].includes(dto.role.toUpperCase())) {
+      const globalWhere = dto.email ? { email: ILike(dto.email) } : { phoneNumber: dto.phoneNumber };
+      
+      const normalizedQueryRole = dto.role.toUpperCase() === 'ADMIN' ? UserRole.INSTITUTE_ADMIN : dto.role.toUpperCase() as UserRole;
+      
+      user = await this.userRepo.findOne({
+        where: { ...globalWhere, role: normalizedQueryRole },
+        relations: ['tenant'],
+      });
+    }
 
     let isNewUser = false;
 
     if (!user) {
       isNewUser = true;
-      let normalizedRole = UserRole.STUDENT;
+      let normalizedRole: UserRole = UserRole.STUDENT;
       if (dto.role) {
         const r = dto.role.toUpperCase();
         if (r === 'TEACHER') normalizedRole = UserRole.TEACHER;
@@ -208,12 +228,14 @@ export class AuthService {
       }
 
       if (normalizedRole === UserRole.INSTITUTE_ADMIN || normalizedRole === UserRole.SUPER_ADMIN || normalizedRole === UserRole.TEACHER) {
+        console.error(`[DEBUG AUTH] Blocking new user creation for role ${normalizedRole}. Email ${dto.email} not found.`);
         throw new BadRequestException('Account not found. Please use the exact email registered for your Admin/Teacher account, or contact support.');
       }
 
+      const defaultName = (normalizedRole as any) === UserRole.TEACHER ? 'Teacher' : (normalizedRole as any) === UserRole.INSTITUTE_ADMIN ? 'Admin' : 'Student';
       user = this.userRepo.create({
         ...(dto.email ? { email: dto.email } : { phoneNumber: dto.phoneNumber }),
-        fullName: normalizedRole === UserRole.TEACHER ? 'Teacher' : normalizedRole === UserRole.INSTITUTE_ADMIN ? 'Admin' : 'Student',
+        fullName: defaultName,
         tenantId,
         role: normalizedRole,
         status: UserStatus.ACTIVE,
@@ -237,6 +259,8 @@ export class AuthService {
       user: this.sanitizeUser(user),
       isNewUser,
       onboardingRequired: isNewUser || (user.role === UserRole.STUDENT && !(await this.isOnboarded(user.id))),
+      tenantDomain: user.tenant?.subdomain,
+      institute: user.tenant,
     };
   }
 
@@ -266,10 +290,19 @@ export class AuthService {
     await user.hashRefreshToken(tokens.refreshToken);
     await this.userRepo.save(user);
 
-    const teacherProfile =
-      user.role === UserRole.TEACHER
-        ? await this.teacherProfileRepo.findOne({ where: { userId: user.id } })
-        : null;
+    let teacherProfile = null;
+    if (user.role === UserRole.TEACHER) {
+      teacherProfile = await this.teacherProfileRepo.findOne({ where: { userId: user.id } });
+      if (!teacherProfile) {
+        teacherProfile = await this.teacherProfileRepo.save(
+          this.teacherProfileRepo.create({
+            userId: user.id,
+            tenantId: user.tenantId,
+            onboardingComplete: false,
+          })
+        );
+      }
+    }
 
     const tenant =
       user.role === UserRole.INSTITUTE_ADMIN
@@ -447,11 +480,13 @@ export class AuthService {
 
   async createTeacher(dto: CreateTeacherDto, tenantId: string) {
     // Check duplicate phone or email in this tenant
-    const existingPhone = await this.userRepo.findOne({
-      where: { phoneNumber: dto.phoneNumber, tenantId },
-    });
-    if (existingPhone) {
-      throw new ConflictException('A user with this phone number already exists in this tenant');
+    if (dto.phoneNumber) {
+      const existingPhone = await this.userRepo.findOne({
+        where: { phoneNumber: dto.phoneNumber, tenantId },
+      });
+      if (existingPhone) {
+        throw new ConflictException('A user with this phone number already exists in this tenant');
+      }
     }
 
     if (dto.email) {
@@ -464,10 +499,11 @@ export class AuthService {
     }
 
     const tempPassword = dto.password || this.generateTempPassword();
+    const resolvedFullName = dto.fullName || dto.name || 'Teacher';
 
     const teacher = this.userRepo.create({
-      phoneNumber: dto.phoneNumber,
-      fullName: dto.fullName,
+      phoneNumber: dto.phoneNumber || null,
+      fullName: resolvedFullName,
       email: dto.email,
       password: tempPassword,
       tenantId,
@@ -485,7 +521,7 @@ export class AuthService {
       .catch(err => this.logger.error(`Failed sending credentials email: ${err.message}`));
 
     return {
-      teacher: this.sanitizeUser(teacher),
+      teacher: { ...this.sanitizeUser(teacher), name: teacher.fullName },
       tempPassword,
       message: 'Teacher created. Credentials sent via email.',
     };
@@ -498,27 +534,31 @@ export class AuthService {
 
     for (const t of dto.teachers) {
       try {
-        const existingPhone = await this.userRepo.findOne({
-          where: { phoneNumber: t.phoneNumber, tenantId },
-        });
-        if (existingPhone) {
-          results.push({ fullName: t.fullName, email: t.email, tempPassword: '', status: 'skipped', error: 'Phone number already exists' });
-          continue;
+        if (t.phoneNumber) {
+          const existingPhone = await this.userRepo.findOne({
+            where: { phoneNumber: t.phoneNumber, tenantId },
+          });
+          if (existingPhone) {
+            results.push({ fullName: t.fullName || t.name, email: t.email, tempPassword: '', status: 'skipped', error: 'Phone number already exists' });
+            continue;
+          }
         }
         if (t.email) {
           const existingEmail = await this.userRepo.findOne({
             where: { email: t.email, tenantId },
           });
           if (existingEmail) {
-            results.push({ fullName: t.fullName, email: t.email, tempPassword: '', status: 'skipped', error: 'Email already exists' });
+            results.push({ fullName: t.fullName || t.name, email: t.email, tempPassword: '', status: 'skipped', error: 'Email already exists' });
             continue;
           }
         }
 
         const tempPassword = t.password || this.generateTempPassword();
+        const resolvedFullName = t.fullName || t.name || 'Teacher';
+
         const teacher = this.userRepo.create({
-          phoneNumber: t.phoneNumber,
-          fullName: t.fullName,
+          phoneNumber: t.phoneNumber || null,
+          fullName: resolvedFullName,
           email: t.email,
           password: tempPassword,
           tenantId,
@@ -531,13 +571,13 @@ export class AuthService {
 
         // Send credentials email (fire-and-forget)
         if (t.email) {
-          this.mailService.sendCredentials(t.email, t.fullName, t.email, tempPassword, instituteName)
+          this.mailService.sendCredentials(t.email, resolvedFullName, t.email, tempPassword, instituteName)
             .catch(err => this.logger.error(`Bulk email fail for ${t.email}: ${err.message}`));
         }
 
-        results.push({ fullName: t.fullName, email: t.email, tempPassword, status: 'created' });
+        results.push({ fullName: resolvedFullName, email: t.email, tempPassword, status: 'created' });
       } catch (err) {
-        results.push({ fullName: t.fullName, email: t.email, tempPassword: '', status: 'failed', error: err.message });
+        results.push({ fullName: t.fullName || t.name, email: t.email, tempPassword: '', status: 'failed', error: err.message });
       }
     }
 
@@ -560,26 +600,39 @@ export class AuthService {
   }
 
   async getTeacherDetail(teacherId: string, tenantId: string) {
-    const teacher = await this.userRepo.findOne({
+    let teacher = await this.userRepo.findOne({
       where: { id: teacherId, tenantId, role: UserRole.TEACHER },
     });
+
+    if (!teacher) {
+      const profile = await this.teacherProfileRepo.findOne({
+        where: { id: teacherId, tenantId },
+        relations: ['user'],
+      });
+      if (profile?.user && profile.user.role === UserRole.TEACHER) {
+        teacher = profile.user;
+      }
+    }
+
     if (!teacher) throw new NotFoundException('Teacher not found');
+
+    const resolvedUserId = teacher.id;
 
     // Batches assigned to this teacher
     const batches = await this.batchRepo.find({
-      where: { teacherId, tenantId },
+      where: { teacherId: resolvedUserId, tenantId },
       order: { createdAt: 'DESC' },
     });
 
     // Lectures by this teacher
     const lectureCount = await this.lectureRepo.count({
-      where: { teacherId, tenantId },
+      where: { teacherId: resolvedUserId, tenantId },
     });
 
     // Doubts assigned/resolved by this teacher
     const [totalDoubts, resolvedDoubts] = await Promise.all([
-      this.doubtRepo.count({ where: { teacherId } }),
-      this.doubtRepo.count({ where: { teacherId, resolvedAt: Not(IsNull()) } }),
+      this.doubtRepo.count({ where: { teacherId: resolvedUserId } }),
+      this.doubtRepo.count({ where: { teacherId: resolvedUserId, resolvedAt: Not(IsNull()) } }),
     ]);
 
     // Students across all their batches
@@ -706,6 +759,15 @@ export class AuthService {
     let teacherProfile: TeacherProfile | null = null;
     if (user.role === UserRole.TEACHER) {
       teacherProfile = await this.teacherProfileRepo.findOne({ where: { userId } });
+      if (!teacherProfile) {
+        teacherProfile = await this.teacherProfileRepo.save(
+          this.teacherProfileRepo.create({
+            userId,
+            tenantId: user.tenantId,
+            onboardingComplete: false,
+          })
+        );
+      }
     }
 
     return toJsonSafeDeep({

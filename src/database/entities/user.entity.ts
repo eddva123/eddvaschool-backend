@@ -5,11 +5,11 @@ import { Base } from './base.entity';
 import { Tenant } from './tenant.entity';
 
 export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  INSTITUTE_ADMIN = 'institute_admin',
-  TEACHER = 'teacher',
-  STUDENT = 'student',
-  PARENT = 'parent',
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  INSTITUTE_ADMIN = 'INSTITUTE_ADMIN',
+  TEACHER = 'TEACHER',
+  STUDENT = 'STUDENT',
+  PARENT = 'PARENT',
 }
 
 export enum UserStatus {
@@ -20,27 +20,27 @@ export enum UserStatus {
 }
 
 @Entity('users')
-@Index('UQ_user_phone_tenant_partial', ['phoneNumber', 'tenantId'], { unique: true, where: 'deleted_at IS NULL' })
+@Index('UQ_user_phone_tenant_partial', ['phoneNumber', 'tenantId'], { unique: true })
 export class User extends Base {
   // ── Tenant (multi-tenancy) ───────────────────────────────────────────────
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id', nullable: true })
   tenantId: string;
 
   @ManyToOne(() => Tenant, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
   // ── Identity ─────────────────────────────────────────────────────────────
-  @Column({ name: 'phone_number' })
+  @Column({ name: 'phone', nullable: true })
   phoneNumber: string;
 
   @Column({ nullable: true })
   email: string;
 
-  @Column({ name: 'full_name' })
+  @Column({ name: 'name', nullable: true })
   fullName: string;
 
-  @Column({ name: 'profile_picture_url', nullable: true })
+  @Column({ name: 'photo', nullable: true })
   profilePictureUrl: string;
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -48,50 +48,62 @@ export class User extends Base {
   @Column({ nullable: true })
   password: string;
 
-  @Column({ name: 'phone_verified', default: false })
-  phoneVerified: boolean;
+  @Column({ name: 'phone_verified', type: 'boolean', default: true })
+  phoneVerified: boolean = true;
 
-  @Column({ name: 'email_verified', default: false })
-  emailVerified: boolean;
+  @Column({ name: 'email_verified', type: 'boolean', default: true })
+  emailVerified: boolean = true;
 
-  @Column({ name: 'is_first_login', default: true })
-  isFirstLogin: boolean;
+  @Column({ name: 'is_first_login', type: 'boolean', default: false })
+  isFirstLogin: boolean = false;
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
-  lastLoginAt: Date;
+  lastLoginAt: Date = new Date();
 
   // ── Role & Status ─────────────────────────────────────────────────────────
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.STUDENT })
+  @Column({ type: 'varchar', default: UserRole.STUDENT })
   role: UserRole;
 
-  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.PENDING_VERIFICATION })
+  @Column({
+    name: 'is_active',
+    type: 'boolean',
+    nullable: true,
+    transformer: {
+      to: (value: UserStatus) => value === UserStatus.ACTIVE,
+      from: (value: boolean) => value ? UserStatus.ACTIVE : UserStatus.INACTIVE,
+    }
+  })
   status: UserStatus;
 
-  // ── Refresh token (hashed) ────────────────────────────────────────────────
-  @Exclude()
-  @Column({ name: 'refresh_token', nullable: true })
-  refreshToken: string;
+  @Column({ name: 'refresh_token', type: 'varchar', nullable: true })
+  refreshToken: string = '';
 
-  // ── Notification preferences ──────────────────────────────────────────────
-  @Column({
-    name: 'notification_prefs',
-    type: 'jsonb',
-    default: { push: true, whatsapp: true, email: false, sms: false },
-  })
-  notificationPrefs: {
-    push: boolean;
-    whatsapp: boolean;
-    email: boolean;
-    sms: boolean;
-  };
+  @Column({ name: 'notification_prefs', type: 'jsonb', nullable: true })
+  notificationPrefs = { push: true, whatsapp: true, email: false, sms: false };
 
-  @Column({ name: 'fcm_token', nullable: true })
-  fcmToken: string;
+  @Column({ name: 'fcm_token', type: 'varchar', nullable: true })
+  fcmToken: string = '';
 
   // ── Hooks ─────────────────────────────────────────────────────────────────
   @BeforeInsert()
+  async fillDefaultsAndHashPassword() {
+    if (!this.fullName) {
+      const roleStr = String(this.role || '');
+      this.fullName = roleStr ? (roleStr.charAt(0).toUpperCase() + roleStr.slice(1).toLowerCase()) : 'User';
+    }
+    if (!this.email) {
+      this.email = `${this.phoneNumber?.replace(/[^0-9]/g, '') || Date.now()}@eddva.local`;
+    }
+    if (!this.password) {
+      const tempPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      this.password = await bcrypt.hash(tempPassword, 12);
+    } else if (!this.password.startsWith('$2')) {
+      this.password = await bcrypt.hash(this.password, 12);
+    }
+  }
+
   @BeforeUpdate()
-  async hashPassword() {
+  async hashPasswordOnUpdate() {
     if (this.password && !this.password.startsWith('$2')) {
       this.password = await bcrypt.hash(this.password, 12);
     }

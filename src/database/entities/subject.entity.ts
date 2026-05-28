@@ -17,8 +17,12 @@ import { Tenant } from './tenant.entity';
 // ─── Subject ─────────────────────────────────────────────────────────────────
 @Entity('subjects')
 export class Subject extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -52,14 +56,18 @@ export class Subject extends Base {
 // ─── Chapter ──────────────────────────────────────────────────────────────────
 @Entity('chapters')
 export class Chapter extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
   tenant: Tenant;
 
-  @Column({ name: 'subject_id' })
+  @Column({ nullable: true,  name: 'subject_id' })
   subjectId: string;
 
   @ManyToOne(() => Subject, (s) => s.chapters)
@@ -88,8 +96,12 @@ export class Chapter extends Base {
 // ─── Topic ────────────────────────────────────────────────────────────────────
 @Entity('topics')
 export class Topic extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -128,8 +140,12 @@ export class Topic extends Base {
 // ─── TopicResource ────────────────────────────────────────────────────────────
 @Entity('topic_resources')
 export class TopicResource extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })

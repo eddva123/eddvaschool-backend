@@ -18,8 +18,12 @@ export class XpConfig extends Base {
 // ─── XpTransaction ──────────────────────────────────────────────────────────
 @Entity('xp_transactions')
 export class XpTransaction extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -47,8 +51,12 @@ export class XpTransaction extends Base {
 // ─── LeaderboardCycle ───────────────────────────────────────────────────────
 @Entity('leaderboard_cycles')
 export class LeaderboardCycle extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -70,8 +78,12 @@ export class LeaderboardCycle extends Base {
 // ─── LeaderboardGroup ───────────────────────────────────────────────────────
 @Entity('leaderboard_groups')
 export class LeaderboardGroup extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -118,8 +130,12 @@ export class LeaderboardGroupMember extends Base {
 @Entity('video_watch_sessions')
 @Index(['studentId', 'lectureId'], { unique: true })
 export class VideoWatchSession extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })

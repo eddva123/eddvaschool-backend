@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Fee, Transaction, FeeStatus } from '../../database/entities/finance.entity';
-import { TenantService } from '../../common/middleware/tenant.middleware';
 
 @Injectable()
 export class FinanceService {

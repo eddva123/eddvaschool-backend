@@ -13,8 +13,12 @@ export enum LiveSessionStatus {
 
 @Entity('live_sessions')
 export class LiveSession extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'lecture_id' })
   lectureId: string;
@@ -26,7 +30,7 @@ export class LiveSession extends Base {
   @Column({ name: 'agora_channel_name', unique: true })
   agoraChannelName: string;
 
-  @Column({ type: 'enum', enum: LiveSessionStatus, default: LiveSessionStatus.WAITING })
+  @Column({ nullable: true,  type: 'enum', enum: LiveSessionStatus, default: LiveSessionStatus.WAITING })
   status: LiveSessionStatus;
 
   @Column({ name: 'teacher_agora_uid' })
@@ -72,8 +76,12 @@ export class LiveSession extends Base {
 
 @Entity('live_attendances')
 export class LiveAttendance extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'live_session_id' })
   liveSessionId: string;
@@ -104,8 +112,12 @@ export class LiveAttendance extends Base {
 
 @Entity('live_chat_messages')
 export class LiveChatMessage extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'live_session_id' })
   liveSessionId: string;
@@ -139,8 +151,12 @@ export class LiveChatMessage extends Base {
 
 @Entity('live_polls')
 export class LivePoll extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'live_session_id' })
   liveSessionId: string;

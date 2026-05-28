@@ -27,8 +27,12 @@ export enum MockTestScope {
 
 @Entity('mock_tests')
 export class MockTest extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -111,8 +115,12 @@ export enum TestSessionStatus {
 
 @Entity('test_sessions')
 export class TestSession extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -132,7 +140,7 @@ export class TestSession extends Base {
   @JoinColumn({ name: 'mock_test_id' })
   mockTest: MockTest;
 
-  @Column({ type: 'enum', enum: TestSessionStatus, default: TestSessionStatus.IN_PROGRESS })
+  @Column({ nullable: true,  type: 'enum', enum: TestSessionStatus, default: TestSessionStatus.IN_PROGRESS })
   status: TestSessionStatus;
 
   @Column({ name: 'started_at', type: 'timestamptz', default: () => 'NOW()' })
@@ -196,8 +204,12 @@ export enum ErrorType {
 
 @Entity('question_attempts')
 export class QuestionAttempt extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'test_session_id' })
   testSessionId: string;
@@ -258,8 +270,12 @@ export enum TopicStatus {
 
 @Entity('topic_progress')
 export class TopicProgress extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -275,7 +291,7 @@ export class TopicProgress extends Base {
   @JoinColumn({ name: 'topic_id' })
   topic: Topic;
 
-  @Column({ type: 'enum', enum: TopicStatus, default: TopicStatus.LOCKED })
+  @Column({ nullable: true,  type: 'enum', enum: TopicStatus, default: TopicStatus.LOCKED })
   status: TopicStatus;
 
   @Column({ name: 'best_accuracy', type: 'float', default: 0 })

@@ -15,10 +15,10 @@ import { User } from '../../database/entities/user.entity';
 import { buildOtpEmailHtml } from './templates/email-otp.template';
 import {
   SendPhoneOtpDto, VerifyPhoneOtpDto,
-  SendEmailOtpDto,  VerifyEmailOtpDto,
+  SendEmailOtpDto, VerifyEmailOtpDto,
   OtpRegisterDto,
 } from './dto/otp.dto';
-import { UserRole } from '../../database/entities/user.entity';
+import { UserRole, UserStatus } from '../../database/entities/user.entity';
 
 const MAX_ATTEMPTS = 3;
 const OTP_TTL_SECONDS = 300; // 5 minutes
@@ -52,7 +52,7 @@ export class OtpService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {
     // Twilio
-    const sid   = config.get<string>('TWILIO_ACCOUNT_SID');
+    const sid = config.get<string>('TWILIO_ACCOUNT_SID');
     const token = config.get<string>('TWILIO_AUTH_TOKEN');
     this.twilioVerifyServiceSid = config.get<string>('TWILIO_VERIFY_SERVICE_SID');
     if (sid && token) {
@@ -77,14 +77,23 @@ export class OtpService {
     }
 
     const hashed = await bcrypt.hash(dto.password, 10);
-    const user   = this.userRepo.create({
-      fullName:    dto.fullName,
-      email:       dto.email,
+    const user = this.userRepo.create({
+      tenantId: dto.tenantId, // IMPORTANT
+
+      fullName: dto.fullName,
+
+      email: dto.email,
+
       phoneNumber: dto.phoneNumber,
-      password:    hashed,
-      role:        (dto.role ?? 'student') as any,
-      status:      'pending_verification' as any, // not active until both OTPs verified
+
+      password: hashed,
+
+      role: dto.role === 'institute_admin' ? UserRole.INSTITUTE_ADMIN : UserRole.STUDENT,
+
+      status: UserStatus.PENDING_VERIFICATION,
+
       phoneVerified: false,
+
       emailVerified: false,
     });
     await this.userRepo.save(user);
@@ -191,7 +200,7 @@ export class OtpService {
 
   async sendEmailOtp(dto: SendEmailOtpDto) {
     const devMode = this.config.get<string>('OTP_DEV_MODE') === 'true';
-    const otp     = devMode ? '654321' : generateOtp();
+    const otp = devMode ? '654321' : generateOtp();
     const cacheKey = `email_otp:${dto.email}`;
 
     await this.cache.set(cacheKey, otp, OTP_TTL_SECONDS * 1000);
@@ -217,10 +226,10 @@ export class OtpService {
 
     try {
       const result = await this.resend.emails.send({
-        from:    fromEmail,
-        to:      [dto.email],
+        from: fromEmail,
+        to: [dto.email],
         subject: `${otp} is your EDDVA verification code`,
-        html:    buildOtpEmailHtml(otp, userName),
+        html: buildOtpEmailHtml(otp, userName),
       });
 
       this.logger.log(`Resend accepted OTP email for ${maskEmail(dto.email)}${result?.data?.id ? ` (id: ${result.data.id})` : ''}`);
@@ -234,7 +243,7 @@ export class OtpService {
 
   async verifyEmailOtp(dto: VerifyEmailOtpDto) {
     const cacheKey = `email_otp:${dto.email}`;
-    const attKey   = `email_attempts:${dto.email}`;
+    const attKey = `email_attempts:${dto.email}`;
 
     const attempts = ((await this.cache.get<number>(attKey)) ?? 0);
     if (attempts >= MAX_ATTEMPTS)
@@ -256,11 +265,11 @@ export class OtpService {
     const user = dto.userId
       ? await this.userRepo.findOne({ where: { id: dto.userId }, relations: ['tenant'] })
       : await this.userRepo.findOne({
-          where: requestedRole
-            ? { email: dto.email, role: requestedRole }
-            : { email: dto.email },
-          relations: ['tenant'],
-        });
+        where: requestedRole
+          ? { email: dto.email, role: requestedRole }
+          : { email: dto.email },
+        relations: ['tenant'],
+      });
 
     if (!user) {
       throw new BadRequestException('No account found for this email in the selected login portal.');
@@ -283,12 +292,12 @@ export class OtpService {
 
     const institute = user.tenant
       ? {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          tenantDomain: user.tenant.subdomain,
-          subdomain: user.tenant.subdomain,
-          logo: user.tenant.logoUrl || null,
-        }
+        id: user.tenant.id,
+        name: user.tenant.name,
+        tenantDomain: user.tenant.subdomain,
+        subdomain: user.tenant.subdomain,
+        logo: user.tenant.logoUrl || null,
+      }
       : null;
 
     return {

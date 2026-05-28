@@ -18,8 +18,12 @@ export enum BatchDeliveryMode {
 
 @Entity('batches')
 export class Batch extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -57,7 +61,7 @@ export class Batch extends Base {
   @Column({ name: 'platform_fee_percent', type: 'decimal', precision: 5, scale: 2, default: 20 })
   platformFeePercent: number;
 
-  @Column({ type: 'enum', enum: BatchStatus, default: BatchStatus.ACTIVE })
+  @Column({ nullable: true,  type: 'enum', enum: BatchStatus, default: BatchStatus.ACTIVE })
   status: BatchStatus;
 
   @Column({ name: 'delivery_mode', type: 'enum', enum: BatchDeliveryMode, default: BatchDeliveryMode.HYBRID })
@@ -82,8 +86,12 @@ export class Batch extends Base {
 @Entity('batch_subject_teachers')
 @Unique('UQ_batch_subject', ['batchId', 'subjectName'])
 export class BatchSubjectTeacher extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'batch_id' })
   batchId: string;
@@ -99,7 +107,7 @@ export class BatchSubjectTeacher extends Base {
   @JoinColumn({ name: 'teacher_id' })
   teacher: User;
 
-  @Column({ name: 'subject_name' })
+  @Column({ nullable: true,  name: 'subject_name' })
   subjectName: string; // "Physics", "Chemistry", "Mathematics", "English", etc.
 }
 
@@ -111,8 +119,12 @@ export enum EnrollmentStatus {
 
 @Entity('enrollments')
 export class Enrollment extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -132,7 +144,7 @@ export class Enrollment extends Base {
   @JoinColumn({ name: 'batch_id' })
   batch: Batch;
 
-  @Column({ type: 'enum', enum: EnrollmentStatus, default: EnrollmentStatus.ACTIVE })
+  @Column({ nullable: true,  type: 'enum', enum: EnrollmentStatus, default: EnrollmentStatus.ACTIVE })
   status: EnrollmentStatus;
 
   @Column({ name: 'enrolled_at', type: 'timestamptz', default: () => 'NOW()' })

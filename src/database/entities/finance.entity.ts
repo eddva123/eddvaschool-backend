@@ -12,8 +12,12 @@ export enum FeeStatus {
 
 @Entity('fees')
 export class Fee extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -35,17 +39,21 @@ export class Fee extends Base {
   @Column({ name: 'amount_paid', type: 'float', default: 0 })
   amountPaid: number;
 
-  @Column({ name: 'due_date', type: 'timestamptz' })
+  @Column({ nullable: true,  name: 'due_date', type: 'timestamptz' })
   dueDate: Date;
 
-  @Column({ type: 'enum', enum: FeeStatus, default: FeeStatus.PENDING })
+  @Column({ nullable: true,  type: 'enum', enum: FeeStatus, default: FeeStatus.PENDING })
   status: FeeStatus;
 }
 
 @Entity('transactions')
 export class Transaction extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })

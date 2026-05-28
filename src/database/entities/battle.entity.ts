@@ -33,8 +33,12 @@ export enum EloTier {
 
 @Entity('battles')
 export class Battle extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -53,7 +57,7 @@ export class Battle extends Base {
   @Column({ type: 'enum', enum: BattleMode, default: BattleMode.QUICK_DUEL })
   mode: BattleMode;
 
-  @Column({ type: 'enum', enum: BattleStatus, default: BattleStatus.WAITING })
+  @Column({ nullable: true,  type: 'enum', enum: BattleStatus, default: BattleStatus.WAITING })
   status: BattleStatus;
 
   @Column({ name: 'max_participants', default: 2 })

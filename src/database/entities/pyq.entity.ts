@@ -13,8 +13,12 @@ export class PYQAttempt {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -77,6 +81,6 @@ export class PYQYearStats {
   @Column({ name: 'hard_count', default: 0 })
   hardCount: number;
 
-  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  @Column({ nullable: true,  name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
   updatedAt: Date;
 }

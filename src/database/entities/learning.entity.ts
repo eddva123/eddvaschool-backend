@@ -28,8 +28,12 @@ export enum ExplanationMode {
 
 @Entity('doubts')
 export class Doubt extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -72,7 +76,7 @@ export class Doubt extends Base {
   explanationMode: ExplanationMode;
 
   // ── Resolution ────────────────────────────────────────────────────────────
-  @Column({ type: 'enum', enum: DoubtStatus, default: DoubtStatus.OPEN })
+  @Column({ nullable: true,  type: 'enum', enum: DoubtStatus, default: DoubtStatus.OPEN })
   status: DoubtStatus;
 
   @Column({ name: 'ai_explanation', type: 'text', nullable: true })
@@ -137,8 +141,12 @@ export enum TranscriptStatus {
 
 @Entity('lectures')
 export class Lecture extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })
@@ -174,7 +182,7 @@ export class Lecture extends Base {
   @Column({ type: 'enum', enum: LectureType })
   type: LectureType;
 
-  @Column({ type: 'enum', enum: LectureStatus, default: LectureStatus.PROCESSING })
+  @Column({ nullable: true,  type: 'enum', enum: LectureStatus, default: LectureStatus.PROCESSING })
   status: LectureStatus;
 
   // ── Media ─────────────────────────────────────────────────────────────────
@@ -236,8 +244,12 @@ export class Lecture extends Base {
 
 @Entity('lecture_progress')
 export class LectureProgress extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -281,8 +293,12 @@ export class LectureProgress extends Base {
 // ─── Study Plan ───────────────────────────────────────────────────────────────
 @Entity('study_plans')
 export class StudyPlan extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'student_id' })
   studentId: string;
@@ -347,7 +363,7 @@ export class PlanItem extends Base {
   @Column({ name: 'sort_order', default: 0 })
   sortOrder: number;
 
-  @Column({ type: 'enum', enum: PlanItemStatus, default: PlanItemStatus.PENDING })
+  @Column({ nullable: true,  type: 'enum', enum: PlanItemStatus, default: PlanItemStatus.PENDING })
   status: PlanItemStatus;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
@@ -358,8 +374,12 @@ export class PlanItem extends Base {
 
 @Entity('ai_study_sessions')
 export class AiStudySession extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ name: 'student_id' })
   studentId: string;

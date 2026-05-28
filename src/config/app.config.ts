@@ -26,9 +26,9 @@ export const jwtConfig = registerAs('jwt', () => {
 
   return {
     secret: secret || 'dev-secret-change-me',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: isProd ? (process.env.JWT_EXPIRES_IN || '7d') : '365d',
     refreshSecret: refreshSecret || 'dev-refresh-secret',
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+    refreshExpiresIn: isProd ? (process.env.JWT_REFRESH_EXPIRES_IN || '30d') : '365d',
   };
 });
 

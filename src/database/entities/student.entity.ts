@@ -48,11 +48,11 @@ export enum SubscriptionPlan {
 
 @Entity('students')
 export class Student extends Base {
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'institute_id' })
   tenantId: string;
 
   @ManyToOne(() => Tenant)
-  @JoinColumn({ name: 'tenant_id' })
+  @JoinColumn({ name: 'institute_id' })
   tenant: Tenant;
 
   @Column({ name: 'user_id', unique: true })

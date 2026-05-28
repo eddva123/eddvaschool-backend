@@ -45,10 +45,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     try {
       const fs = require('fs');
-      const logMessage = `[${new Date().toISOString()}] ${request.method} ${request.url}\n` +
-        `Status: ${status}\n` +
-        `Error: ${exception instanceof Error ? exception.stack : JSON.stringify(exception)}\n\n`;
-      fs.appendFileSync('d:\\Edva\\eddva_backend\\critical_error.log', logMessage);
+      const path = require('path');
+      const logDir = path.join(process.cwd(), 'logs');
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      const logFilePath = path.join(logDir, 'error.log');
+      const structuredLog = {
+        timestamp: new Date().toISOString(),
+        method: request.method,
+        url: request.url,
+        statusCode: status,
+        message: exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? exception.stack : null,
+      };
+      fs.appendFileSync(logFilePath, JSON.stringify(structuredLog) + '\n');
     } catch (e) {
       // ignore
     }
