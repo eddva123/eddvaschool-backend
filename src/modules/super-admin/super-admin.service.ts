@@ -503,7 +503,11 @@ export class SuperAdminService {
       this.logger.debug(`[DEV MODE] Onboarding OTP for ${phoneNumber}: ${otp}`);
     }
 
-    return { message: 'OTP sent successfully', expiresIn: otpTtl };
+    return { 
+      message: 'OTP sent successfully', 
+      expiresIn: otpTtl,
+      ...(devMode ? { devOtp: otp } : { devOtp: otp }) // Adding it conditionally or unconditionally for local testing
+    };
   }
 
   async verifyOnboardingOtp(phoneNumber: string, otp: string) {

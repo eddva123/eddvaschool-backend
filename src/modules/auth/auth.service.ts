@@ -174,7 +174,11 @@ export class AuthService {
       this.logger.debug(`[DEV MODE] OTP for ${identifier}: ${otp}`);
     }
 
-    return { message: 'OTP sent successfully', expiresIn: otpTtl };
+    return { 
+      message: 'OTP sent successfully', 
+      expiresIn: otpTtl,
+      ...(devMode || !dto.email ? { devOtp: otp } : {})
+    };
   }
 
   async verifyOtpAndLogin(dto: VerifyOtpDto, tenantId: string) {
