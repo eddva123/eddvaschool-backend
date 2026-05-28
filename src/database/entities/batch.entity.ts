@@ -57,7 +57,7 @@ export class Batch extends BaseWithDelete {
   @Column({ name: 'platform_fee_percent', type: 'decimal', precision: 5, scale: 2, default: 20 })
   platformFeePercent: number;
 
-  @Column({ type: 'enum', enum: BatchStatus, default: BatchStatus.ACTIVE })
+  @Column({ nullable: true, type: 'enum', enum: BatchStatus, default: BatchStatus.ACTIVE })
   status: BatchStatus;
 
   @Column({ name: 'delivery_mode', type: 'enum', enum: BatchDeliveryMode, default: BatchDeliveryMode.HYBRID })
@@ -99,7 +99,7 @@ export class BatchSubjectTeacher extends BaseWithDelete {
   @JoinColumn({ name: 'teacher_id' })
   teacher: User;
 
-  @Column({ name: 'subject_name' })
+  @Column({ nullable: true, name: 'subject_name' })
   subjectName: string; // "Physics", "Chemistry", "Mathematics", "English", etc.
 }
 
@@ -132,7 +132,7 @@ export class Enrollment extends BaseWithDelete {
   @JoinColumn({ name: 'batch_id' })
   batch: Batch;
 
-  @Column({ type: 'enum', enum: EnrollmentStatus, default: EnrollmentStatus.ACTIVE })
+  @Column({ nullable: true, type: 'enum', enum: EnrollmentStatus, default: EnrollmentStatus.ACTIVE })
   status: EnrollmentStatus;
 
   @Column({ name: 'enrolled_at', type: 'timestamptz', default: () => 'NOW()' })

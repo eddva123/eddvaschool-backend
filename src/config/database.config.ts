@@ -30,7 +30,7 @@ export const dbConfig: DataSourceOptions = {
     // Idle connections released after 5 minutes to keep the pool warm and avoid TLS handshake latency
     idleTimeoutMillis: 300_000,
   },
-  entities: [__dirname + '/../database/entities/*.entity{.ts,.js}'],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
 };

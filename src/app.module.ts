@@ -36,6 +36,7 @@ import {
 } from './database/entities/live-class.entity';
 import { Announcement } from './database/entities/announcement.entity';
 import { TeacherProfile } from './database/entities/teacher.entity';
+import { TeacherDataStore } from './database/entities/teacher-data-store.entity';
 import { PYQAttempt, PYQYearStats } from './database/entities/pyq.entity';
 import { StudyMaterial } from './modules/study-material/study-material.entity';
 import { ExamSyllabusCache } from './database/entities/exam-syllabus.entity';
@@ -79,6 +80,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { CompatModule } from './modules/compat/compat.module';
+import { TeacherModule } from './modules/teacher/teacher.module';
 
 const ALL_ENTITIES = [
   Tenant, User, Student,
@@ -126,9 +128,12 @@ const ALL_ENTITIES = [
         }
         return {
           ...dbConfig,
-          synchronize: !isProd && dbSyncRequested,
+          synchronize: false, // Immediately disabled globally per stabilization request
           logging: !isProd,
-          entities: ALL_ENTITIES,
+
+          extra: {
+            max: 5,
+          },
         };
       },
     }),
@@ -213,6 +218,7 @@ const ALL_ENTITIES = [
     AssignmentsModule,
     FinanceModule,
     CompatModule,
+    TeacherModule,
   ],
   providers: [
     // Global exception filter

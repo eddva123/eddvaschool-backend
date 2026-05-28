@@ -14,11 +14,19 @@ export class MailService {
     if (!this.devMode) {
       this.transporter = nodemailer.createTransport({
         host: this.config.get('mail.host'),
-        port: this.config.get('mail.port'),
-        secure: this.config.get('mail.secure'),
+        port: Number(this.config.get('mail.port')),
+
+        secure:
+          this.config.get('mail.secure') === true ||
+          this.config.get('mail.secure') === 'true',
+
         auth: {
           user: this.config.get('mail.user'),
           pass: this.config.get('mail.pass'),
+        },
+
+        tls: {
+          rejectUnauthorized: false,
         },
       });
     }

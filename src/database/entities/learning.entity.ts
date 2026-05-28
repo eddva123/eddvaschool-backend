@@ -72,7 +72,7 @@ export class Doubt extends BaseWithDelete {
   explanationMode: ExplanationMode;
 
   // ── Resolution ────────────────────────────────────────────────────────────
-  @Column({ type: 'enum', enum: DoubtStatus, default: DoubtStatus.OPEN })
+  @Column({ nullable: true, type: 'enum', enum: DoubtStatus, default: DoubtStatus.OPEN })
   status: DoubtStatus;
 
   @Column({ name: 'ai_explanation', type: 'text', nullable: true })
@@ -174,7 +174,7 @@ export class Lecture extends BaseWithDelete {
   @Column({ type: 'enum', enum: LectureType })
   type: LectureType;
 
-  @Column({ type: 'enum', enum: LectureStatus, default: LectureStatus.PROCESSING })
+  @Column({ nullable: true, type: 'enum', enum: LectureStatus, default: LectureStatus.PROCESSING })
   status: LectureStatus;
 
   // ── Media ─────────────────────────────────────────────────────────────────
@@ -347,7 +347,7 @@ export class PlanItem extends BaseWithDelete {
   @Column({ name: 'sort_order', default: 0 })
   sortOrder: number;
 
-  @Column({ type: 'enum', enum: PlanItemStatus, default: PlanItemStatus.PENDING })
+  @Column({ nullable: true, type: 'enum', enum: PlanItemStatus, default: PlanItemStatus.PENDING })
   status: PlanItemStatus;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })

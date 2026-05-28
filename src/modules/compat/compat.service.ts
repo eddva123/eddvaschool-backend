@@ -9,6 +9,24 @@ import { Tenant, TenantPlan, TenantStatus } from '../../database/entities/tenant
 import { TeacherProfile } from '../../database/entities/teacher.entity';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Complaint, ComplaintStatus } from '../../database/entities/complaint.entity';
+import { TeacherDataStore } from '../../database/entities/teacher-data-store.entity';
+import {
+  TeacherDataStoreService,
+  AttendanceItem,
+  AssignmentItem,
+  ScheduleItem,
+  MaterialItem,
+  EventItem,
+  GrievanceItem,
+  TopicItem,
+} from './teacher-datastore.service';
+import { TeacherAttendanceService } from '../teacher/attendance/teacher-attendance.service';
+import { TeacherAssignmentsService } from '../teacher/assignments/teacher-assignments.service';
+import { TeacherAnnouncementService } from '../teacher/announcements/teacher-announcement.service';
+import { TeacherDashboardService } from '../teacher/dashboard/teacher-dashboard.service';
+import { TeacherCreatorStudioService } from '../teacher/creator-studio/teacher-creator-studio.service';
+import { TeacherLiveClassesService } from '../teacher/live-classes/teacher-live-classes.service';
+import { TeacherAssessmentsService } from '../teacher/assessments/teacher-assessments.service';
 
 type ChatMessageRecord = {
   id: string;
@@ -41,6 +59,7 @@ export class CompatService {
   private readonly topics: any[] = [];
   private readonly materials: any[] = [];
   private readonly assignments: any[] = [];
+  private readonly grievances: any[] = [];
   private readonly attendanceRecords: any[] = [
     { studentId: 'S001', name: 'Alice Johnson', className: '12-A', present: 22, absent: 2, late: 1, percentage: 92 },
     { studentId: 'S002', name: 'Bob Smith', className: '12-A', present: 20, absent: 4, late: 2, percentage: 83 },
@@ -48,7 +67,6 @@ export class CompatService {
     { studentId: 'S004', name: 'Diana Prince', className: '12-A', present: 18, absent: 6, late: 3, percentage: 75 },
     { studentId: 'S005', name: 'Evan Wright', className: '12-A', present: 21, absent: 3, late: 1, percentage: 88 }
   ];
-  private readonly grievances: any[] = [];
 
   constructor(
     private readonly dataSource: DataSource,
@@ -59,7 +77,26 @@ export class CompatService {
     @InjectRepository(Student) private readonly studentRepo: Repository<Student>,
     @InjectRepository(TeacherProfile) private readonly teacherProfileRepo: Repository<TeacherProfile>,
     @InjectRepository(Complaint) private readonly complaintRepo: Repository<Complaint>,
-  ) {}
+    @InjectRepository(TeacherDataStore) private readonly dataStoreRepo: Repository<TeacherDataStore>,
+    private readonly teacherDataStoreService: TeacherDataStoreService,
+    // ── Domain service delegates (single sources of truth) ──────────────────
+    private readonly teacherAttendanceService: TeacherAttendanceService,
+    private readonly teacherAssignmentsService: TeacherAssignmentsService,
+    private readonly teacherAnnouncementService: TeacherAnnouncementService,
+    private readonly teacherDashboardService: TeacherDashboardService,
+    private readonly teacherCreatorStudioService: TeacherCreatorStudioService,
+    private readonly teacherLiveClassesService: TeacherLiveClassesService,
+    private readonly teacherAssessmentsService: TeacherAssessmentsService,
+  ) { }
+
+  private async getData<T>(tenantId: string, category: string, defaultData: T): Promise<T> {
+    const store = await this.teacherDataStoreService.getData(tenantId, category, (defaultData as any) || []);
+    return store.items.filter((item: any) => !item.isDeleted) as any;
+  }
+
+  private async saveData<T>(tenantId: string, category: string, data: T): Promise<void> {
+    await this.teacherDataStoreService.saveData(tenantId, category, (data as any) || []);
+  }
 
   async listInstitutes(query: Record<string, any>) {
     const page = Math.max(1, Number(query.page || 1));
@@ -420,7 +457,39 @@ export class CompatService {
 
   async updateTeacher(id: string, payload: Record<string, any>, currentUser: any) {
     const tenantId = currentUser?.tenantId || payload.tenantId;
-    const profile = await this.teacherProfileRepo.findOne({ where: tenantId ? { id, tenantId } : { id }, relations: ['user', 'user.tenant'] });
+    let profile = await this.teacherProfileRepo.findOne({
+      where: tenantId
+        ? [
+          { id, tenantId },
+          { userId: id, tenantId },
+        ]
+        : [
+          { id },
+          { userId: id },
+        ],
+      relations: ['user', 'user.tenant'],
+    });
+
+    if (!profile) {
+      // Auto-recovery fallback: check if user exists as a teacher
+      const user = await this.userRepo.findOne({
+        where: tenantId ? { id, tenantId, role: UserRole.TEACHER } : { id, role: UserRole.TEACHER },
+      });
+      if (user) {
+        const createdProfile = await this.teacherProfileRepo.save(
+          this.teacherProfileRepo.create({
+            userId: user.id,
+            tenantId: user.tenantId,
+            onboardingComplete: false,
+          })
+        );
+        profile = await this.teacherProfileRepo.findOne({
+          where: { id: createdProfile.id },
+          relations: ['user', 'user.tenant'],
+        });
+      }
+    }
+
     if (!profile) throw new NotFoundException(`Teacher ${id} not found`);
 
     profile.user.fullName = payload.name || payload.fullName || profile.user.fullName;
@@ -444,52 +513,74 @@ export class CompatService {
   }
 
   async deleteTeacher(id: string) {
-    const profile = await this.teacherProfileRepo.findOne({ where: { id }, relations: ['user'] });
+    const profile = await this.teacherProfileRepo.findOne({
+      where: [
+        { id },
+        { userId: id },
+      ],
+      relations: ['user'],
+    });
     if (!profile) throw new NotFoundException(`Teacher ${id} not found`);
     await this.teacherProfileRepo.softDelete(id);
     await this.userRepo.softDelete(profile.userId);
     return { success: true };
   }
 
+  async getTeacherDetail(id: string, tenantId?: string) {
+    let profile = await this.teacherProfileRepo.findOne({
+      where: tenantId
+        ? [
+          { id, tenantId },
+          { userId: id, tenantId },
+        ]
+        : [
+          { id },
+          { userId: id },
+        ],
+      relations: ['user', 'user.tenant'],
+    });
+
+    if (!profile) {
+      // Auto-recovery fallback: check if user exists as a teacher
+      const user = await this.userRepo.findOne({
+        where: tenantId ? { id, tenantId, role: UserRole.TEACHER } : { id, role: UserRole.TEACHER },
+      });
+      if (user) {
+        const createdProfile = await this.teacherProfileRepo.save(
+          this.teacherProfileRepo.create({
+            userId: user.id,
+            tenantId: user.tenantId,
+            onboardingComplete: false,
+          })
+        );
+        profile = await this.teacherProfileRepo.findOne({
+          where: { id: createdProfile.id },
+          relations: ['user', 'user.tenant'],
+        });
+      }
+    }
+
+    if (!profile) throw new NotFoundException(`Teacher ${id} not found`);
+
+    return this.toTeacherView(profile);
+  }
+
+  // ── TEACHER ANNOUNCEMENTS ── Delegated to TeacherAnnouncementService ────
+  async getTeacherAnnouncements(query: Record<string, any>, user: any) {
+    return this.teacherAnnouncementService.getAnnouncementsForTeacher(query, user);
+  }
+
+  // ── EVENTS ── Delegated to TeacherLiveClassesService ────────────────
   async getEvents(query: Record<string, any>, currentUser: any) {
-    const tenantId = currentUser?.tenantId || query.tenantId || null;
-    const category = typeof query.category === 'string' ? query.category : 'All';
-    const from = query.from ? new Date(query.from) : null;
-    const to = query.to ? new Date(query.to) : null;
-
-    const items = this.events
-      .filter((event) => !tenantId || event.tenantId === tenantId)
-      .filter((event) => category === 'All' || event.category === category)
-      .filter((event) => !from || new Date(event.startTime) >= from)
-      .filter((event) => !to || new Date(event.startTime) <= to)
-      .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
-
-    return items;
+    return this.teacherLiveClassesService.getEvents(query, currentUser);
   }
 
   async createEvent(payload: Record<string, any>, currentUser: any) {
-    const tenantId = currentUser?.tenantId || payload.tenantId || null;
-    const event = {
-      id: `event_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      tenantId,
-      title: payload.title || 'Event',
-      startTime: payload.startTime || payload.start || new Date().toISOString(),
-      endTime: payload.endTime || payload.end || payload.startTime || new Date().toISOString(),
-      category: payload.category || 'ACADEMIC',
-      description: payload.description || '',
-      location: payload.location || '',
-      priority: payload.priority || 'NORMAL',
-      createdAt: new Date().toISOString(),
-    };
-    this.events.unshift(event);
-    return event;
+    return this.teacherLiveClassesService.createEvent(payload, currentUser);
   }
 
-  async deleteEvent(id: string) {
-    const index = this.events.findIndex((event) => event.id === id);
-    if (index === -1) throw new NotFoundException(`Event ${id} not found`);
-    this.events.splice(index, 1);
-    return { success: true };
+  async deleteEvent(id: string, currentUser?: any) {
+    return this.teacherLiveClassesService.deleteEvent(id, currentUser);
   }
 
   async createNotice(payload: Record<string, any>) {
@@ -658,7 +749,7 @@ export class CompatService {
 
     const tenantId = currentUser?.tenantId;
     const items = await this.complaintRepo.find({ where: tenantId ? { tenantId } : {}, relations: ['tenant', 'user'], order: { createdAt: 'DESC' } });
-    
+
     return items.map(c => ({
       id: c.id,
       title: c.title,
@@ -837,7 +928,7 @@ export class CompatService {
       subjectIds: Array.isArray(payload.subjectIds) ? payload.subjectIds : [],
       subjectNames: Array.isArray(payload.subjectNames) ? payload.subjectNames : [],
     };
-    
+
     if (payload.section) {
       const sectionNames = payload.section.split(',').map((s: string) => s.trim()).filter(Boolean);
       sectionNames.forEach((sName: string) => {
@@ -858,7 +949,7 @@ export class CompatService {
   async updateAcademicClass(id: string, payload: Record<string, any>) {
     const classIdx = this.academicClasses.findIndex(c => c.id === id);
     if (classIdx === -1) throw new NotFoundException(`Class ${id} not found`);
-    
+
     this.academicClasses[classIdx] = {
       ...this.academicClasses[classIdx],
       name: payload.name ?? this.academicClasses[classIdx].name,
@@ -880,7 +971,7 @@ export class CompatService {
   async createAcademicSection(classId: string, payload: Record<string, any>) {
     const classObj = this.academicClasses.find(c => c.id === classId);
     if (!classObj) throw new NotFoundException(`Class ${classId} not found`);
-    
+
     const newSection = {
       id: `sec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name: payload.name,
@@ -937,211 +1028,101 @@ export class CompatService {
   }
 
   // --- CLASSES SCHEDULES & RECORDINGS ---
+  // ── SCHEDULES & RECORDINGS ── Delegated to TeacherLiveClassesService ────
   async getSchedules(user: any) {
-    const tenantId = user?.tenantId;
-    const items = tenantId ? this.schedules.filter(s => s.tenantId === tenantId) : this.schedules;
-    return { data: items };
+    return this.teacherLiveClassesService.getSchedules(user);
   }
 
   async createSchedule(payload: Record<string, any>, user: any) {
-    const newSchedule = {
-      id: `sched_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      tenantId: user?.tenantId,
-      subject_name: payload.subject_id || 'Subject',
-      class_name: payload.class_id || 'Class',
-      day_of_week: payload.day_of_week,
-      start_time: payload.start_time,
-      end_time: payload.end_time,
-      type: payload.type,
-      zoom_link: payload.zoom_link,
-      google_meet_link: payload.google_meet_link,
-      live_status: payload.live_status || 'scheduled',
-      created_at: new Date().toISOString(),
-    };
-    this.schedules.push(newSchedule);
-    return { data: newSchedule };
+    return this.teacherLiveClassesService.createSchedule(payload, user);
   }
 
   async getRecordings(user: any) {
-    const tenantId = user?.tenantId;
-    const items = tenantId ? this.recordings.filter(r => r.tenantId === tenantId) : this.recordings;
-    return { data: items };
+    return this.teacherLiveClassesService.getRecordings(user);
   }
 
-  // --- TOPICS & MATERIALS ---
+  // ── TOPICS & MATERIALS ── Delegated to TeacherCreatorStudioService ─────
   async getTopics(user: any) {
-    const tenantId = user?.tenantId;
-    const items = tenantId ? this.topics.filter(t => t.tenantId === tenantId) : this.topics;
-    return { data: items };
+    return this.teacherCreatorStudioService.getTopics(user);
   }
 
   async createTopic(payload: Record<string, any>, user: any) {
-    const newTopic = {
-      id: `topic_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      tenantId: user?.tenantId,
-      name: payload.name,
-      subject_id: payload.subject_id,
-      subject_name: payload.subject_name || 'Subject',
-      status: 'active',
-      progress: 0,
-      chapters: [],
-    };
-    this.topics.push(newTopic);
-    return { data: newTopic };
+    return this.teacherCreatorStudioService.createTopic(payload, user);
   }
 
-  async getTopicById(id: string) {
-    const topic = this.topics.find(t => t.id === id);
-    if (!topic) throw new NotFoundException(`Topic ${id} not found`);
-    return { data: topic };
+  async getTopicById(id: string, user?: any) {
+    return this.teacherCreatorStudioService.getTopicById(id, user || { tenantId: 'platform' });
   }
 
-  async createTopicChapter(id: string, payload: Record<string, any>) {
-    const topic = this.topics.find(t => t.id === id);
-    if (!topic) throw new NotFoundException(`Topic ${id} not found`);
-    
-    const newChapter = {
-      id: `chap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: payload.name,
-      order: payload.order,
-      status: 'active',
-      progress: 0,
-    };
-    topic.chapters.push(newChapter);
-    return { data: newChapter };
+  async createTopicChapter(id: string, payload: Record<string, any>, user?: any) {
+    return this.teacherCreatorStudioService.createTopicChapter(id, payload, user || { tenantId: 'platform' });
   }
 
-  async uploadMaterial(payload: Record<string, any>) {
-    const newMaterial = {
-      id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      title: payload.title,
-      chapter_id: payload.chapter_id,
-      uploadedAt: new Date().toISOString(),
-    };
-    this.materials.push(newMaterial);
-    return { data: newMaterial, message: 'Material uploaded successfully' };
+  async uploadMaterial(payload: Record<string, any>, user?: any) {
+    return this.teacherCreatorStudioService.uploadMaterial(payload, user || { tenantId: 'platform' });
   }
 
-  // --- ASSESSMENTS ANALYTICS & LEADERBOARD ---
+  // ── ASSESSMENTS ANALYTICS & LEADERBOARD ── Delegated to TeacherAssessmentsService ──
   async getAssessmentLeaderboard(id: string) {
-    // Generate dummy leaderboard data to prevent UI from breaking
-    const data = [
-      { student_name: "Alice Johnson", class_name: "12-A", marks_obtained: 95, percentage: 95 },
-      { student_name: "Bob Smith", class_name: "12-A", marks_obtained: 88, percentage: 88 },
-      { student_name: "Charlie Brown", class_name: "12-A", marks_obtained: 82, percentage: 82 },
-      { student_name: "Diana Prince", class_name: "12-A", marks_obtained: 78, percentage: 78 },
-      { student_name: "Evan Wright", class_name: "12-A", marks_obtained: 65, percentage: 65 },
-    ];
-    return { data };
+    return this.teacherAssessmentsService.getLeaderboard(id);
   }
 
   async getAssessmentAnalytics(id: string) {
-    // Generate dummy analytics data
-    const data = {
-      averageScore: 81,
-      highestScore: 95,
-      passRate: 90,
-      distinctionRate: 40,
-      gradeDistribution: [
-        { grade: "A", count: 12, color: "#4ade80" },
-        { grade: "B", count: 18, color: "#3b82f6" },
-        { grade: "C", count: 10, color: "#f59e0b" },
-        { grade: "D", count: 4, color: "#ef4444" },
-        { grade: "F", count: 2, color: "#94a3b8" },
-      ],
-    };
-    return { data };
+    return this.teacherAssessmentsService.getAnalytics(id);
   }
 
-  // --- ASSIGNMENTS ---
+  // ── ASSIGNMENTS ── Delegated to TeacherAssignmentsService ──────────────
   async getAssignments(user: any) {
-    const tenantId = user?.tenantId;
-    const items = tenantId ? this.assignments.filter(a => a.tenantId === tenantId) : this.assignments;
-    return { data: items };
+    return this.teacherAssignmentsService.getAssignments(user);
   }
 
   async createAssignment(payload: Record<string, any>, user: any) {
-    const newAssignment = {
-      id: `assn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      tenantId: user?.tenantId,
-      title: payload.title,
-      type: payload.type,
-      class_id: payload.class_id,
-      class_name: 'Class ' + payload.class_id,
-      subject_id: payload.subject_id,
-      subject_name: 'Subject ' + payload.subject_id,
-      due_date: payload.due_date,
-      instructions: payload.instructions,
-      status: 'active',
-    };
-    this.assignments.push(newAssignment);
-    return { data: newAssignment };
+    return this.teacherAssignmentsService.createAssignment(payload, user);
   }
 
-  async deleteAssignment(id: string) {
-    const idx = this.assignments.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      this.assignments.splice(idx, 1);
-      return { success: true };
-    }
-    throw new NotFoundException(`Assignment ${id} not found`);
+  async deleteAssignment(id: string, currentUser?: any) {
+    return this.teacherAssignmentsService.deleteAssignment(id, currentUser);
   }
 
-  // --- ATTENDANCE ---
+  // ── ATTENDANCE ── Delegated to TeacherAttendanceService ──────────────
   async getAttendanceReport(user: any) {
-    const students = await this.getStudents({ tenantId: user?.tenantId });
-    const lookup = new Map(students.map((student: any) => [student.id, student]));
-
-    return this.attendanceRecords.map((record, index) => {
-      const matchedStudent = lookup.get(record.studentId) || students[index % Math.max(1, students.length)];
-      return this.toAttendanceView(record, matchedStudent);
-    });
+    return this.teacherAttendanceService.getAttendanceReport(user);
   }
 
   async getAttendanceStudents(classId: string, user: any) {
-    const students = await this.getStudents({ tenantId: user?.tenantId });
-    return students.filter((student: any) => !classId || student.studentProfile?.section?.class?.id === classId);
+    return this.teacherAttendanceService.getAttendanceStudents(classId, user);
   }
 
   async markAttendance(payload: Record<string, any>, user: any) {
-    const entry = {
-      studentId: body.studentId || body.userId,
-      name: body.name || body.studentName || 'Student',
-      className: body.className || body.class || 'Class',
-      present: body.status === 'PRESENT' ? 1 : 0,
-      absent: body.status === 'ABSENT' ? 1 : 0,
-      late: body.status === 'LATE' ? 1 : 0,
-      percentage: body.status === 'PRESENT' ? 100 : 0,
-      date: body.date || new Date().toISOString().split('T')[0],
-      status: body.status || 'PRESENT',
-      remarks: body.remarks || '',
-    };
-    this.attendanceRecords.unshift(entry);
-    return { success: true, marked: entry };
-    // Just mock success
-    return { success: true, message: 'Attendance marked successfully' };
+    return this.teacherAttendanceService.markAttendance(payload, user);
   }
 
-  // --- GRIEVANCES ---
+  // ── GRIEVANCES ── remain in JSONB DataStore (not yet normalized) ──────
   async getGrievances(user: any) {
     const tenantId = user?.tenantId;
-    const items = tenantId ? this.grievances.filter(g => g.tenantId === tenantId) : this.grievances;
+    const store = await this.teacherDataStoreService.getData<GrievanceItem>(tenantId, 'grievances', []);
+    const items = store.items.filter(item => !item.isDeleted);
     return { data: items };
   }
 
   async createGrievance(payload: Record<string, any>, user: any) {
-    const newGrievance = {
+    const tenantId = user?.tenantId;
+    const newGrievance: GrievanceItem = {
       id: `grv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      tenantId: user?.tenantId,
+      tenantId: tenantId,
       title: payload.title,
       category: payload.category,
       priority: payload.priority,
       description: payload.description,
       status: 'open',
-      raised_by_name: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Anonymous',
+      raised_by_name: user?.fullName ? user.fullName : 'Anonymous',
       created_at: new Date().toISOString()
     };
-    this.grievances.push(newGrievance);
+
+    const store = await this.teacherDataStoreService.getData<GrievanceItem>(tenantId, 'grievances', []);
+    store.items.push(newGrievance);
+    await this.teacherDataStoreService.saveData(tenantId, 'grievances', store.items, user?.id);
+
     return { data: newGrievance };
   }
 
@@ -1181,7 +1162,7 @@ export class CompatService {
     return `Temp@${Math.random().toString(36).slice(2, 8)}${String(Date.now()).slice(-4)}`;
   }
 
-  private toStudentView(student: Student & { user?: User }) {
+  private toStudentView(student: any) {
     const className = String(student.class || student.examTarget || 'Unassigned');
     return {
       id: student.user?.id || student.userId,
@@ -1205,7 +1186,7 @@ export class CompatService {
     };
   }
 
-  private toTeacherView(profile: TeacherProfile & { user?: User }) {
+  private toTeacherView(profile: any) {
     return {
       id: profile.user?.id || profile.userId,
       name: profile.user?.fullName || 'Teacher',
@@ -1633,7 +1614,7 @@ export class CompatService {
   private normalizeComplaintStatus(value: any) {
     const status = String(value || '').toUpperCase();
     if (status === 'IN_PROGRESS' || status === 'RESOLVED' || status === 'CLOSED' || status === 'OPEN') {
-      return status as ComplaintRecord['status'];
+      return status as ComplaintStatus;
     }
     return undefined;
   }

@@ -32,6 +32,8 @@ export class UploadController {
   private static readonly MAX_STANDARD_FILE_SIZE = 10 * 1024 * 1024;
   private static readonly MAX_MATERIAL_FILE_SIZE = 100 * 1024 * 1024;
   private static readonly MAX_VIDEO_FILE_SIZE = 2 * 1024 * 1024 * 1024;
+  private static readonly MAX_ASSIGNMENT_FILE_SIZE = 50 * 1024 * 1024;
+  private static readonly MAX_CREATOR_FILE_SIZE = 500 * 1024 * 1024;
 
   constructor(private readonly s3Service: S3Service) {}
 
@@ -114,16 +116,24 @@ export class UploadController {
   private validateFileSize(type: UploadType, fileSize: number) {
     const maxBytes = type === UploadType.LECTURE_VIDEO
       ? UploadController.MAX_VIDEO_FILE_SIZE
-      : type === UploadType.MATERIAL
-        ? UploadController.MAX_MATERIAL_FILE_SIZE
-        : UploadController.MAX_STANDARD_FILE_SIZE;
+      : type === UploadType.CREATOR_MATERIAL
+        ? UploadController.MAX_CREATOR_FILE_SIZE
+        : type === UploadType.ASSIGNMENT_ATTACHMENT
+          ? UploadController.MAX_ASSIGNMENT_FILE_SIZE
+          : type === UploadType.MATERIAL
+            ? UploadController.MAX_MATERIAL_FILE_SIZE
+            : UploadController.MAX_STANDARD_FILE_SIZE;
 
     if (fileSize > maxBytes) {
       const limitLabel = type === UploadType.LECTURE_VIDEO
         ? '2 GB'
-        : type === UploadType.MATERIAL
-          ? '100 MB'
-          : '10 MB';
+        : type === UploadType.CREATOR_MATERIAL
+          ? '500 MB'
+          : type === UploadType.ASSIGNMENT_ATTACHMENT
+            ? '50 MB'
+            : type === UploadType.MATERIAL
+              ? '100 MB'
+              : '10 MB';
       throw new BadRequestException(`File size must be less than or equal to ${limitLabel}`);
     }
   }
@@ -188,6 +198,21 @@ export class UploadController {
           throw new BadRequestException('Lecture videos must use a video content type');
         }
         break;
+      case UploadType.ASSIGNMENT_ATTACHMENT:
+        if (
+          contentType !== 'application/pdf' &&
+          !contentType.startsWith('image/') &&
+          contentType !== 'application/zip' &&
+          contentType !== 'application/x-zip-compressed'
+        ) {
+          throw new BadRequestException('Assignment attachments must be PDF, image, or ZIP');
+        }
+        break;
+      case UploadType.CREATOR_MATERIAL:
+        if (contentType !== 'application/pdf' && !contentType.startsWith('video/')) {
+          throw new BadRequestException('Creator material must be PDF or video');
+        }
+        break;
     }
   }
 
@@ -218,6 +243,10 @@ export class UploadController {
         return `tenants/${tenantId}/doubts/response-images/${fileName}`;
       case UploadType.STUDY_MATERIAL:
         return `tenants/${tenantId}/study-materials/${fileName}`;
+      case UploadType.ASSIGNMENT_ATTACHMENT:
+        return `tenants/${tenantId}/teacher/assignments/${fileName}`;
+      case UploadType.CREATOR_MATERIAL:
+        return `tenants/${tenantId}/teacher/creator/${fileName}`;
       default:
         throw new BadRequestException('Unsupported upload type');
     }

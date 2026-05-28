@@ -25,8 +25,12 @@ export enum QuestionSource {
 
 @Entity('questions')
 export class Question extends Base {
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @ManyToOne(() => Tenant)
   @JoinColumn({ name: 'tenant_id' })

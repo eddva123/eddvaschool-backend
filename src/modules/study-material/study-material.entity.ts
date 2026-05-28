@@ -23,8 +23,12 @@ export class StudyMaterial {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'tenant_id', type: 'uuid' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ type: 'enum', enum: StudyMaterialExam })
   exam: StudyMaterialExam;

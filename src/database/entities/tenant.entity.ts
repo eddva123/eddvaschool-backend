@@ -32,7 +32,7 @@ export class Tenant extends BaseWithDelete {
   @Column({ type: 'enum', enum: TenantType, default: TenantType.INSTITUTE })
   type: TenantType;
 
-  @Column({ type: 'enum', enum: TenantStatus, default: TenantStatus.TRIAL })
+  @Column({ nullable: true,  type: 'enum', enum: TenantStatus, default: TenantStatus.TRIAL })
   status: TenantStatus;
 
   @Column({ type: 'enum', enum: TenantPlan, default: TenantPlan.STARTER })

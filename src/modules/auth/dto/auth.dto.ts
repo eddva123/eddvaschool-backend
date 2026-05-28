@@ -12,7 +12,7 @@ import {
   IsArray,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ExamTarget, StudentClass, ExamYear, Language } from '../../../database/entities/student.entity';
 
@@ -103,21 +103,25 @@ export class VerifyOtpDto {
   @ApiPropertyOptional({ example: '+919876543210' })
   @IsOptional()
   @IsPhoneNumber('IN')
+  @Transform(({ value }) => value?.trim())
   phoneNumber?: string;
 
   @ApiPropertyOptional({ example: 'admin@institute.com' })
   @IsOptional()
   @IsEmail()
+  @Transform(({ value }) => value?.trim())
   email?: string;
 
   @ApiPropertyOptional({ example: 'INSTITUTE_ADMIN' })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value?.trim())
   role?: string;
 
   @ApiProperty({ example: '123456' })
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value?.trim())
   otp: string;
 }
 
@@ -211,15 +215,20 @@ export class SetPasswordDto {
 }
 
 export class CreateTeacherDto {
-  @ApiProperty({ example: '+919876543210' })
+  @ApiPropertyOptional({ example: '+919876543210' })
+  @IsOptional()
   @IsPhoneNumber('IN')
-  @IsNotEmpty()
-  phoneNumber: string;
+  phoneNumber?: string;
 
-  @ApiProperty({ example: 'Rajesh Kumar' })
+  @ApiPropertyOptional({ example: 'Rajesh Kumar' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  fullName: string;
+  fullName?: string;
+
+  @ApiPropertyOptional({ example: 'Rajesh Kumar' })
+  @IsOptional()
+  @IsString()
+  name?: string;
 
   @ApiProperty({ example: 'rajesh@institute.com' })
   @IsEmail()

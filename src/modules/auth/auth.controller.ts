@@ -10,6 +10,7 @@ import {
   Patch,
   BadRequestException,
   UnauthorizedException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
@@ -82,7 +83,9 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify OTP and login / register' })
-  verifyOtp(@Body() dto: VerifyOtpDto, @TenantId() tenantId: string) {
+  verifyOtp(@Body() dto: VerifyOtpDto, @TenantId() tenantId: string, @Req() req: any) {
+    console.log('[DEBUG AUTH DTO] POST /auth/otp/verify raw body:', req.body);
+    console.log('[DEBUG AUTH DTO] Parsed DTO:', dto);
     return this.authService.verifyOtpAndLogin(dto, tenantId);
   }
 

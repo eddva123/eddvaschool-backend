@@ -22,6 +22,8 @@ export enum UploadType {
   DOUBT_RESPONSE_IMAGE = 'doubt-response-image',
   /** Notes / PYQ PDFs for the study-material library (JEE/NEET) */
   STUDY_MATERIAL = 'study-material',
+  ASSIGNMENT_ATTACHMENT = 'assignment-attachment',
+  CREATOR_MATERIAL = 'creator-material',
 }
 
 export class GenerateUploadUrlDto {

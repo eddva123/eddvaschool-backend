@@ -17,8 +17,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "typeorm": "typeorm-ts-node-commonjs",
-    "migration:generate": "npm run typeorm -- migration:generate",
-    "migration:run": "npm run typeorm -- migration:run -d src/config/database.config.ts",
+    "migration:check": "node scripts/check-migration.js",
+    "migration:generate": "npm run typeorm -- migration:generate -d src/config/database.config.ts src/database/migrations/SchemaUpdate",
+    "migration:run": "npm run migration:check && npm run typeorm -- migration:run -d src/config/database.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/database.config.ts",
     "seed": "ts-node src/database/seed.ts"
   },

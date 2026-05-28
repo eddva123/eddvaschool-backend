@@ -1,14 +1,13 @@
 import 'reflect-metadata';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe, VersioningType, Logger } from '@nestjs/common';
+import { ValidationPipe, VersioningType, Logger, BadRequestException } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
 import { mkdirSync } from 'fs';
 import helmet from 'helmet';
 import compression from 'compression';
-import './bootstrap-env';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -16,6 +15,42 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
+
+  // ── Stabilization Pass: Legacy Data Backfill ───────────────────────────────
+  try {
+    const { DataSource } = require('typeorm');
+    const dataSource = app.get(DataSource);
+    
+    logger.log('Running legacy multitenant data backfill check...');
+    
+    // Find a default tenant if one exists
+    const defaultTenant = await dataSource.query(`SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1`);
+    
+    if (defaultTenant && defaultTenant.length > 0) {
+      const fallbackTenantId = defaultTenant[0].id;
+      
+      // Patch users
+      const usersResult = await dataSource.query(`UPDATE users SET tenant_id = $1 WHERE tenant_id IS NULL`, [fallbackTenantId]);
+      if (usersResult[1] > 0) {
+        logger.warn(`Backfilled ${usersResult[1]} legacy users with fallback tenant_id: ${fallbackTenantId}`);
+      }
+
+      // Patch other core legacy entities if needed (example: assignments)
+      const assignmentsResult = await dataSource.query(`UPDATE assignments SET tenant_id = $1 WHERE tenant_id IS NULL`, [fallbackTenantId]);
+      if (assignmentsResult[1] > 0) {
+        logger.warn(`Backfilled ${assignmentsResult[1]} legacy assignments with fallback tenant_id: ${fallbackTenantId}`);
+      }
+    } else {
+      // Check if there are orphans without any tenant existing
+      const orphanUsers = await dataSource.query(`SELECT COUNT(*) FROM users WHERE tenant_id IS NULL`);
+      if (orphanUsers[0].count > 0) {
+        logger.warn(`Found ${orphanUsers[0].count} orphan users with NULL tenant_id, but no fallback tenant exists yet!`);
+      }
+    }
+  } catch (err) {
+    logger.error('Failed to run legacy data backfill routine (non-fatal)', err);
+  }
+
 
   // ── Static file serving for uploads ───────────────────────────────────────
   mkdirSync(join(__dirname, '..', 'uploads', 'avatars'), { recursive: true });
@@ -73,6 +108,10 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,           // Auto-transform primitives (string → number etc.)
       transformOptions: { enableImplicitConversion: true },
+      exceptionFactory: (errors) => {
+        logger.error('[DEBUG AUTH DTO] Validation failed:', JSON.stringify(errors.map(e => ({ property: e.property, constraints: e.constraints, value: e.value })), null, 2));
+        return new BadRequestException(errors);
+      },
     }),
   );
 
@@ -95,6 +134,14 @@ async function bootstrap() {
       .addTag('Analytics', 'Leaderboard, rank prediction, performance')
       .addTag('Notification', 'Push, WhatsApp, SMS notifications')
       .addTag('AI', 'All 12 AI service endpoints via bridge')
+      .addTag('Teacher - Dashboard', 'Teacher dashboard overview and stats')
+      .addTag('Teacher - Attendance', 'Track and mark student attendance')
+      .addTag('Teacher - Assignments', 'Create and grade assignments')
+      .addTag('Teacher - Announcements', 'View and send announcements')
+      .addTag('Teacher - Assessments', 'Create assessments, leaderboard, and analytics')
+      .addTag('Teacher - Live Classes', 'Schedule and track live classes')
+      .addTag('Teacher - Creator Studio', 'Create topics, chapters, and upload materials')
+      .addTag('Teacher - Analytics', 'Detailed metrics and performance trends')
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

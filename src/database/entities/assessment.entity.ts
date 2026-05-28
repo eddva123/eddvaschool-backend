@@ -132,7 +132,7 @@ export class TestSession extends BaseWithDelete {
   @JoinColumn({ name: 'mock_test_id' })
   mockTest: MockTest;
 
-  @Column({ type: 'enum', enum: TestSessionStatus, default: TestSessionStatus.IN_PROGRESS })
+  @Column({ nullable: true, type: 'enum', enum: TestSessionStatus, default: TestSessionStatus.IN_PROGRESS })
   status: TestSessionStatus;
 
   @Column({ name: 'started_at', type: 'timestamptz', default: () => 'NOW()' })
@@ -275,7 +275,7 @@ export class TopicProgress extends BaseWithDelete {
   @JoinColumn({ name: 'topic_id' })
   topic: Topic;
 
-  @Column({ type: 'enum', enum: TopicStatus, default: TopicStatus.LOCKED })
+  @Column({ nullable: true, type: 'enum', enum: TopicStatus, default: TopicStatus.LOCKED })
   status: TopicStatus;
 
   @Column({ name: 'best_accuracy', type: 'float', default: 0 })

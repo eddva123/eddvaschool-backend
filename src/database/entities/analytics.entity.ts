@@ -176,44 +176,16 @@ export class LeaderboardEntry extends BaseWithDelete {
 }
 
 // ─── Notification ─────────────────────────────────────────────────────────────
+
 export enum NotificationType {
-  MORNING_REMINDER = 'morning_reminder',
-  LIVE_CLASS_STARTING = 'live_class_starting',
-  TOPIC_QUIZ_AVAILABLE = 'topic_quiz_available',
-  BATTLE_LIVE = 'battle_live',
-  RANK_CHANGED = 'rank_changed',
-  STREAK_DANGER = 'streak_danger',
-  WEAK_TOPIC_ALERT = 'weak_topic_alert',
-  MOCK_RESULT_READY = 'mock_result_ready',
-  BATTLE_CHALLENGE = 'battle_challenge',
-  ACHIEVEMENT_UNLOCKED = 'achievement_unlocked',
-  WEEKLY_REPORT = 'weekly_report',
-  SCORE_DROP_ALERT = 'score_drop_alert',
-  PARENT_ATTENDANCE_ALERT = 'parent_attendance_alert',
-  TEACHER_FLAGGED = 'teacher_flagged',
-  NEW_DOUBT = 'new_doubt',
-  SUBSCRIPTION_RENEWAL = 'subscription_renewal',
-  LECTURE_PUBLISHED = 'lecture_published',
-  GENERAL = 'general',
-}
-
-export enum NotificationChannel {
-  PUSH = 'push',
-  WHATSAPP = 'whatsapp',
-  SMS = 'sms',
-  EMAIL = 'email',
-  IN_APP = 'in_app',
-}
-
-export enum NotificationStatus {
-  PENDING = 'pending',
-  SENT = 'sent',
-  FAILED = 'failed',
-  READ = 'read',
+  INFO = 'info',
+  WARNING = 'warning',
+  SUCCESS = 'success',
+  ERROR = 'error',
 }
 
 @Entity('notifications')
-export class Notification extends Base {
+export class Notification extends BaseWithDelete {
   @Column({ name: 'user_id' })
   userId: string;
 
@@ -221,36 +193,22 @@ export class Notification extends Base {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
-
-  @Column({ type: 'enum', enum: NotificationType })
+  @Column({
+    type: 'enum',
+    enum: NotificationType,
+    default: NotificationType.INFO,
+  })
   type: NotificationType;
-
-  @Column({ type: 'enum', enum: NotificationChannel })
-  channel: NotificationChannel;
-
-  @Column({ type: 'enum', enum: NotificationStatus, default: NotificationStatus.PENDING })
-  status: NotificationStatus;
 
   @Column()
   title: string;
 
-  @Column({ type: 'text' })
-  body: string;
+  @Column({ type: 'text', nullable: true })
+  message: string;
 
-  @Column({ type: 'jsonb', nullable: true })
-  data: Record<string, any>; // deep link, action payload
-
-  @Column({ name: 'scheduled_at', type: 'timestamptz', nullable: true })
-  scheduledAt: Date;
-
-  @Column({ name: 'sent_at', type: 'timestamptz', nullable: true })
-  sentAt: Date;
+  @Column({ name: 'is_read', default: false })
+  isRead: boolean;
 
   @Column({ name: 'read_at', type: 'timestamptz', nullable: true })
   readAt: Date;
-
-  @Column({ name: 'failure_reason', nullable: true })
-  failureReason: string;
 }

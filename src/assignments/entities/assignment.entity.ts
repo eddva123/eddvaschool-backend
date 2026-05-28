@@ -1,9 +1,32 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  CreateDateColumn,
+  Index,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+
+import { Base } from '../../database/entities/base.entity';
+import { Tenant } from '../../database/entities/tenant.entity';
 
 @Entity('assignments')
-export class Assignment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+@Index('IDX_assignments_tenant_teacher', ['tenantId', 'teacherId'])
+export class Assignment extends Base {
+  @Index()
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
+
+  @ManyToOne(() => Tenant, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenant: Tenant;
+
+  @Column({ name: 'teacher_id', nullable: true })
+  teacherId: string;
 
   @Column()
   title: string;

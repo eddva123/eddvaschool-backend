@@ -1,6 +1,7 @@
 import { Entity, Column, OneToOne, JoinColumn } from 'typeorm';
 import { Base, BaseWithDelete } from './base.entity';
 import { User } from './user.entity';
+import { Tenant } from './tenant.entity';
 
 @Entity('teacher_profiles')
 export class TeacherProfile extends BaseWithDelete {
@@ -11,8 +12,12 @@ export class TeacherProfile extends BaseWithDelete {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'tenant_id' })
-  tenantId: string;
+  @Column({
+    name: 'tenant_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  tenantId?: string;
 
   @Column({ nullable: true })
   qualification: string; // 'B.Tech', 'M.Sc', 'B.Ed', 'PhD', 'Other'

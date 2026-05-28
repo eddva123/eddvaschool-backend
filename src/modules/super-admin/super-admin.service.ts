@@ -98,6 +98,7 @@ export class SuperAdminService {
           tenantId: tenant.id,
           phoneNumber: dto.adminPhone,
           fullName: `${dto.name} Admin`,
+          name: `${dto.name} Admin`,
           password: tempPassword, // @BeforeInsert hook hashes this
           role: UserRole.INSTITUTE_ADMIN,
           status: UserStatus.ACTIVE,
